@@ -1,0 +1,590 @@
+// Kaizen OS Database Schema V5
+// PostgreSQL with Prisma ORM
+// UUID user IDs for Supabase auth.uid() compatibility
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum TaskStatus {
+  in_progress
+  not_started
+  completed
+  backlog
+}
+
+enum UnitType {
+  THEME
+  ACTION_GATE
+  ACTION_EXPERIMENT
+  ACTION_ROUTINE
+  ACTION_OPS
+  VETO
+}
+
+enum EventType {
+  gate_started
+  gate_completed
+  gate_failed
+  experiment_started
+  experiment_completed
+  experiment_failed
+  experiment_pivoted
+  criteria_graded
+  routine_started
+  routine_replaced
+  ops_started
+  ops_completed
+  veto_added
+  veto_violated
+  time_logged
+  week_planned
+  week_reviewed
+  season_started
+  season_ended
+  agent_mutation
+  // WorkItem events for playlist model
+  workitem_completed
+  workitem_attributed
+  workitem_created
+}
+
+// Users table - UUID primary key for Supabase auth compatibility
+model User {
+  id              String   @id @default(uuid()) @db.Uuid
+  email           String   @unique
+  passwordHash    String   @default("") @map("password_hash")
+  name            String?
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  timezone        String?  @default("America/Los_Angeles") @db.VarChar(50)
+  settings        Json     @default("{}")
+  creditBalanceUsd Decimal @default(0) @map("credit_balance_usd") @db.Decimal(10, 2)
+  lastCreditRefreshAt DateTime? @map("last_credit_refresh_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Stripe subscription fields
+  stripeCustomerId        String?   @unique @map("stripe_customer_id")
+  subscriptionTier        String    @default("free") @map("subscription_tier")
+  subscriptionStatus      String    @default("none") @map("subscription_status")
+  stripeSubscriptionId    String?   @unique @map("stripe_subscription_id")
+  subscriptionPeriodEnd   DateTime? @map("subscription_period_end")
+
+  cards                    Card[]
+  seasons                  Season[]
+  events                   Event[]
+  agentSessions            AgentSession[]
+  agentMessages            AgentMessage[]
+  calendarAccounts         CalendarAccount[]
+  calendarEventAnnotations CalendarEventAnnotation[]
+  eventClassificationRules EventClassificationRule[]
+  routineCalendarLinks     RoutineCalendarLink[]
+  aiClassificationSuggestions AiClassificationSuggestion[]
+  cachedCalendarEvents     CachedCalendarEvent[]
+  planningSessions         PlanningSession[]
+  eventTags                EventTag[]
+  notionAccounts           NotionAccount[]
+  workItemLinks            WorkItemLink[]
+  dailyFocus               DailyFocus[]
+  dailyNotes               DailyNote[]
+  agentUsage               AgentUsage[]
+  apiKeys                  ApiKey[]
+  calendarWorkspaceSubscriptions CalendarWorkspaceSubscription[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  name           String    @db.VarChar(100)
+  keyPrefix      String    @map("key_prefix") @db.VarChar(12)
+  keyHash        String    @unique @map("key_hash") @db.VarChar(64)
+  scopes         Json      @default("[\"read\"]")
+  allowedServers Json      @default("[\"kaizen-db\"]") @map("allowed_servers")
+  lastUsedAt     DateTime? @map("last_used_at")
+  expiresAt      DateTime? @map("expires_at")
+  requestCount   Int       @default(0) @map("request_count")
+  rateLimit      Int       @default(100) @map("rate_limit")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([keyHash])
+  @@map("api_keys")
+}
+
+// Agent sessions for multi-turn chat
+model AgentSession {
+  id            String   @id @default(uuid()) @db.Uuid
+  claudeSession String   @unique @map("claude_session_id")
+  userId        String   @map("user_id") @db.Uuid
+  title         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AgentMessage[]
+  agentUsage AgentUsage[]
+
+  @@index([userId])
+  @@map("agent_sessions")
+}
+
+model AgentMessage {
+  id             BigInt   @id @default(autoincrement())
+  sessionId      String   @map("session_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  role           String
+  content        String   @db.Text
+  checkpointUuid String?  @map("checkpoint_uuid")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId], map: "idx_agent_messages_user")
+  @@map("agent_messages")
+}
+
+model AgentUsage {
+  id               BigInt   @id @default(autoincrement())
+  userId           String   @map("user_id") @db.Uuid
+  sessionId        String   @map("session_id") @db.Uuid
+  inputTokens      Int      @map("input_tokens")
+  outputTokens     Int      @map("output_tokens")
+  cacheReadTokens  Int      @default(0) @map("cache_read_tokens")
+  cacheWriteTokens Int      @default(0) @map("cache_write_tokens")
+  model            String   @default("claude-sonnet-4-20250514")
+  costUsd          Decimal  @map("cost_usd") @db.Decimal(10, 6)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("agent_usage")
+}
+
+
+// Cards - unified table for themes, gates, experiments, routines, ops, tasks, vetoes
+model Card {
+  id             String     @id @default(uuid()) @db.Uuid
+  userId         String     @map("user_id") @db.Uuid
+  parentId       String?    @map("parent_id") @db.Uuid
+  title          String     @db.VarChar(255)
+  description    String?    @db.Text
+  targetDate     DateTime?  @map("target_date") @db.Date
+  completionDate DateTime?  @map("completion_date") @db.Date
+  startDate      DateTime?  @map("start_date") @db.Date
+  status         TaskStatus @default(not_started)
+  unitType       UnitType   @map("unit_type")
+  seasonId       String?    @map("season_id") @db.Uuid
+  lagWeeks       Int?       @map("lag_weeks")
+  criteria       String[]   @default([])
+  tags           Json       @default("{}") // Arbitrary key-value pairs for custom metadata
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Card?   @relation("CardHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Card[]  @relation("CardHierarchy")
+  season   Season? @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  events   Event[]
+
+  // Calendar integration relations
+  calendarEventAnnotations CalendarEventAnnotation[]
+  eventClassificationRules EventClassificationRule[]
+  routineCalendarLinks     RoutineCalendarLink[]
+
+  // WorkItem integration relations
+  workItemLinks            WorkItemLink[]
+
+  @@index([userId, unitType], name: "idx_cards_user_type")
+  @@index([userId, parentId], name: "idx_cards_user_parent")
+  @@index([userId, status], name: "idx_cards_user_status")
+  @@index([seasonId], name: "idx_cards_season")
+  @@index([targetDate], name: "idx_cards_target_date")
+  @@map("cards")
+}
+
+// Seasons - time-boxed planning periods
+model Season {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  name             String   @db.VarChar(100)
+  startDate        DateTime @map("start_date") @db.Date
+  durationWeeks    Int      @map("duration_weeks")
+  utilityRate      Float    @default(40.0) @map("utility_rate")
+  themeAllocations Json     @default("{}") @map("theme_allocations") // { [themeId]: allocation (0-1) }
+  isActive         Boolean  @default(false) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards Card[]
+
+  @@index([userId], name: "idx_seasons_user")
+  @@index([userId], name: "idx_seasons_user_active")
+  @@map("seasons")
+}
+
+// Events - append-only event log for event sourcing
+// Also used for time tracking via 'time_logged' event type
+model Event {
+  id             BigInt    @id @default(autoincrement())
+  userId         String    @map("user_id") @db.Uuid
+  eventType      EventType @map("event_type")
+  cardId         String?   @map("card_id") @db.Uuid
+  payload        Json      @default("{}")
+  occurredAt     DateTime  @default(now()) @map("occurred_at")
+  idempotencyKey String?   @map("idempotency_key") @db.Text
+
+  // Relations
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card Card? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, idempotencyKey], name: "idx_events_idempotency")
+  @@index([userId, eventType], name: "idx_events_user_type")
+  @@index([userId, cardId], name: "idx_events_user_card")
+  @@index([userId, occurredAt(sort: Desc)], name: "idx_events_user_time")
+  @@index([userId, eventType, cardId, occurredAt(sort: Desc)], name: "idx_events_user_type_card_time")
+  @@map("events")
+}
+
+
+// ============================================
+// Calendar Integration Models (Phase 1)
+// ============================================
+
+// Calendar accounts: OAuth connections to Google/Microsoft/etc
+model CalendarAccount {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  provider              String   @default("google") @db.VarChar(20)
+  email                 String   @db.VarChar(255)
+  accessTokenEncrypted  String   @map("access_token_encrypted") @db.Text
+  refreshTokenEncrypted String   @map("refresh_token_encrypted") @db.Text
+  expiresAt             DateTime @map("expires_at")
+  scopes                Json     @default("[]")
+  selectedCalendarIds   Json     @default("[\"primary\"]") @map("selected_calendar_ids")
+  writeCalendarId       String?  @default("primary") @map("write_calendar_id") @db.VarChar(255)
+  selectedTaskListId    String?  @map("selected_task_list_id") @db.VarChar(255)
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user                 User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventAnnotations     CalendarEventAnnotation[]
+  routineCalendarLinks RoutineCalendarLink[]
+  workspaceSubscriptions CalendarWorkspaceSubscription[]
+
+  @@unique([userId, provider, email])
+  @@index([userId])
+  @@map("calendar_accounts")
+}
+
+// Calendar event annotations: durable event→card linking
+model CalendarEventAnnotation {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  calendarId  String   @map("calendar_id") @db.VarChar(255)
+  eventId     String   @map("event_id") @db.VarChar(255)
+  instanceKey String   @map("instance_key") @db.VarChar(255)
+  cardId      String?  @map("card_id") @db.Uuid
+  source      String   @default("manual") @db.VarChar(20)
+  confidence  Float    @default(1.0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account CalendarAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  card    Card?           @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, accountId, calendarId, eventId, instanceKey])
+  @@index([userId])
+  @@index([cardId])
+  @@index([accountId, calendarId, eventId])
+  @@map("calendar_event_annotations")
+}
+
+// Event classification rules: auto-classify events to cards
+model EventClassificationRule {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  matchType  String   @map("match_type") @db.VarChar(30)
+  matchValue String   @map("match_value") @db.Text
+  cardId     String   @map("card_id") @db.Uuid
+  priority   Int      @default(0)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchType, matchValue])
+  @@index([userId, isActive])
+  @@map("event_classification_rules")
+}
+
+// Routine calendar links: link routine cards to recurring GCal events
+model RoutineCalendarLink {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  cardId           String   @map("card_id") @db.Uuid
+  accountId        String   @map("account_id") @db.Uuid
+  calendarId       String   @map("calendar_id") @db.VarChar(255)
+  recurringEventId String   @map("recurring_event_id") @db.VarChar(255)
+  iCalUid          String?  @map("ical_uid") @db.VarChar(255)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card    Card            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  account CalendarAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cardId])
+  @@unique([accountId, calendarId, recurringEventId])
+  @@index([userId])
+  @@index([accountId, recurringEventId])
+  @@map("routine_calendar_links")
+}
+
+// AI-generated suggestions for event classification
+model AiClassificationSuggestion {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  eventTitle  String   @map("event_title") @db.VarChar(500)
+  suggestions Json     // Array of { cardId, cardTitle, confidence, votes }
+  model       String   @default("gemini-1.5-flash") @db.VarChar(50)
+  prompt      String?  @db.Text
+  rawResponse String?  @map("raw_response") @db.Text
+  latencyMs   Int?     @map("latency_ms")
+  createdAt   DateTime @default(now()) @map("created_at")
+  expiresAt   DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventTitle])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("ai_classification_suggestions")
+}
+
+
+// ============================================
+// Planning Session & Event Caching (Phase 2)
+// ============================================
+
+enum PlanningSessionStatus {
+  in_progress
+  committed
+}
+
+// Cached calendar events for faster loading and change detection
+model CachedCalendarEvent {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  accountId        String   @map("account_id") @db.Uuid
+  calendarId       String   @map("calendar_id") @db.VarChar(255)
+  eventId          String   @map("event_id") @db.VarChar(255)
+  summary          String?  @db.VarChar(500)
+  description      String?  @db.Text
+  location         String?  @db.VarChar(500)
+  startDateTime    DateTime @map("start_date_time")
+  endDateTime      DateTime @map("end_date_time")
+  isAllDay         Boolean  @default(false) @map("is_all_day")
+  attendees        Json     @default("[]")
+  htmlLink         String?  @map("html_link") @db.VarChar(500)
+  recurringEventId String?  @map("recurring_event_id") @db.VarChar(255)
+  iCalUID          String?  @map("ical_uid") @db.VarChar(255)
+  contentHash      String   @map("content_hash") @db.VarChar(64) // SHA256 of key fields for change detection
+  fetchedAt        DateTime @default(now()) @map("fetched_at")
+  expiresAt        DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, calendarId, eventId])
+  @@index([userId, expiresAt])
+  @@index([userId, startDateTime, endDateTime])
+  @@map("cached_calendar_events")
+}
+
+// Planning session persistence for resumable planning
+model PlanningSession {
+  id              String                 @id @default(uuid()) @db.Uuid
+  userId          String                 @map("user_id") @db.Uuid
+  weekStart       String                 @map("week_start") @db.VarChar(10) // YYYY-MM-DD
+  actionStates    Json                   @default("{}") @map("action_states") // Map<actionId, { status, tasks[] }>
+  gcalAssignments Json                   @default("{}") @map("gcal_assignments") // Map<eventId, assignment>
+  status          PlanningSessionStatus  @default(in_progress)
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, status])
+  @@map("planning_sessions")
+}
+
+
+// ============================================
+// Event Tags (for Tag Mode feature)
+// ============================================
+
+// Event tags: store tags for calendar events (gcal events don't have local storage)
+model EventTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  eventId   String   @map("event_id") @db.VarChar(255) // gcal event ID
+  tagType   String   @map("tag_type") @db.VarChar(50)  // e.g., 'intention'
+  tagValue  String   @map("tag_value") @db.VarChar(50) // e.g., 'want', 'dont_want', 'neutral'
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId, tagType]) // one value per tag type per event
+  @@index([userId, tagType])
+  @@map("event_tags")
+}
+
+
+// ============================================
+// WorkItem Integration (Phase 5)
+// ============================================
+
+// WorkItemLink: Durable mapping of external WorkItems to Kaizen Cards
+// Allows categorization of calendar events/tasks without mutating external source
+// Extended for playlist model: supports daily playlist ordering and weekly deliverables
+model WorkItemLink {
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  workItemKey         String    @unique @map("work_item_key") @db.VarChar(500) // e.g., gtasks:acc:list:id
+  source              String    @db.VarChar(50)  // google_calendar, google_tasks, notion
+  kind                String    @db.VarChar(20)  // event, task
+  cardId              String?   @map("card_id") @db.Uuid
+  // Playlist fields
+  accountId           String?   @map("account_id") @db.VarChar(255) // calendar account connection id
+  taskListId          String?   @map("task_list_id") @db.VarChar(255) // for Google Tasks; @default for prototype
+  externalId          String?   @map("external_id") @db.VarChar(255) // provider-specific ID for easier queries
+  plannedForDate      DateTime? @map("planned_for_date") @db.Date // which day this task is on the playlist
+  playlistRank        Int?      @map("playlist_rank") // ordering within that day's playlist
+  isWeeklyDeliverable Boolean   @default(false) @map("is_weekly_deliverable") // marked as weekly deliverable
+  isSnack             Boolean   @default(false) @map("is_snack") // snack-size task (<10 min, in-between meetings)
+  // Event attribution (Phase 5b: Task-Event linking)
+  capturedInEventKey  String?   @map("captured_in_event_key") @db.VarChar(500) // context: which block task was created in
+  completedInEventKey String?   @map("completed_in_event_key") @db.VarChar(500) // attribution: which block task was completed in
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card Card? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  @@index([userId, cardId])
+  @@index([userId, plannedForDate])
+  @@index([userId, isWeeklyDeliverable])
+  @@map("work_item_links")
+}
+
+// DailyFocus: Top 3 WorkItems for a specific day
+// Stores ranked priorities for planning/review
+model DailyFocus {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  date      DateTime @db.Date
+  topKeys   Json     @default("[]") @map("top_keys") // string[] of WorkItem keys, max 3
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("daily_focus")
+}
+
+
+// DailyNote: Per-day gratitude text and mindful moments checklist state
+model DailyNote {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  date               DateTime @db.Date
+  gratitudeText      String?  @map("gratitude_text") @db.Text
+  mindfulMeditated   Boolean  @default(false) @map("mindful_meditated")
+  mindfulSteppedAway Boolean  @default(false) @map("mindful_stepped_away")
+  mindfulClosedGmail Boolean  @default(false) @map("mindful_closed_gmail")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("daily_notes")
+}
+
+
+// ============================================
+// Notion Integration (Phase 7)
+// ============================================
+
+// NotionAccount: OAuth connection to Notion workspace
+model NotionAccount {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @map("user_id") @db.Uuid
+  accessTokenEncrypted  String   @map("access_token_encrypted") @db.Text
+  refreshTokenEncrypted String?  @map("refresh_token_encrypted") @db.Text
+  workspaceId           String   @map("workspace_id") @db.VarChar(255)
+  workspaceName         String?  @map("workspace_name") @db.VarChar(255)
+  botId                 String   @map("bot_id") @db.VarChar(255)
+  selectedDatabaseIds   Json     @default("[]") @map("selected_database_ids") // string[]
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([userId])
+  @@map("notion_accounts")
+}
+
+// ============================================
+// Calendar Workspace Subscriptions (Pub/Sub Push)
+// ============================================
+
+model CalendarWorkspaceSubscription {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  accountId        String   @map("account_id") @db.Uuid
+  calendarId       String   @map("calendar_id") @db.VarChar(255)
+  subscriptionName String   @unique @map("subscription_name") @db.Text
+  expiration       DateTime @map("expiration")
+  state            String   @default("active") @db.VarChar(20)
+  resourceId       String?  @map("resource_id") @db.Text
+  syncToken        String?  @map("sync_token") @db.Text
+  channelToken     String?  @map("channel_token") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account CalendarAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, calendarId])
+  @@index([expiration])
+  @@index([userId])
+  @@map("calendar_workspace_subscriptions")
+}

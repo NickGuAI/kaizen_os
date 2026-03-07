@@ -1,0 +1,130 @@
+// Parking Lot Panel - Ad-hoc items with no planned date, shown across all days
+import { useState, useCallback } from 'react'
+import type { WorkItemWithOverlays } from './DailyDashboard'
+
+export interface ParkingLotPanelProps {
+  items: WorkItemWithOverlays[]
+  currentDate: string // YYYY-MM-DD — used for "Pull to today" label
+  onComplete: (workItemKey: string) => void
+  onPullToDate: (workItemKey: string) => void
+  onCreateItem: (title: string) => Promise<void>
+  loading?: boolean
+}
+
+export function ParkingLotPanel({ items, currentDate, onComplete, onPullToDate, onCreateItem, loading }: ParkingLotPanelProps) {
+  const [quickAddValue, setQuickAddValue] = useState('')
+  const [isCreating, setIsCreating] = useState(false)
+  const [draggingKey, setDraggingKey] = useState<string | null>(null)
+
+  const handleDragStart = useCallback((e: React.DragEvent, key: string) => {
+    setDraggingKey(key)
+    e.dataTransfer.effectAllowed = 'move'
+    // Use a distinct MIME type so AmmoPanel can tell this apart from internal reorders
+    e.dataTransfer.setData('application/kaizen-parking', key)
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.45'
+    }
+  }, [])
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    setDraggingKey(null)
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1'
+    }
+  }, [])
+
+  const activeItems = items.filter(item => item.status !== 'done')
+  const doneItems = items.filter(item => item.status === 'done')
+
+  const handleQuickAdd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!quickAddValue.trim()) return
+    setIsCreating(true)
+    try {
+      await onCreateItem(quickAddValue.trim())
+      setQuickAddValue('')
+    } catch (error) {
+      console.error('Failed to create parking lot item:', error)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  // Format date label for "Pull to" button
+  const today = new Date().toISOString().slice(0, 10)
+  const pullLabel = currentDate === today ? 'Pull to today' : `Pull to ${currentDate}`
+
+  return (
+    <div className="parking-lot-panel">
+      <div className="panel-card">
+        <div className="panel-header">
+          <span className="panel-title">Parking Lot</span>
+          <span className="panel-badge">{activeItems.length} items</span>
+        </div>
+
+        <div className="parking-lot-list">
+          {loading && <div className="loading-state">Loading parking lot...</div>}
+
+          {!loading && activeItems.length === 0 && doneItems.length === 0 && (
+            <div className="empty-state">No items in the parking lot</div>
+          )}
+
+          {!loading && activeItems.map(item => (
+            <div
+              key={item.key}
+              className={`parking-item ${draggingKey === item.key ? 'dragging' : ''}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, item.key)}
+              onDragEnd={handleDragEnd}
+            >
+              <span className="parking-drag-handle" title="Drag to playlist">&#x2630;</span>
+              <div
+                className="playlist-checkbox"
+                onClick={() => onComplete(item.key)}
+              />
+              <div className="parking-item-content">
+                <div className="parking-item-title">{item.title}</div>
+                {item.linkedCardTitle && (
+                  <div className="parking-item-card">{item.linkedCardTitle}</div>
+                )}
+              </div>
+              <button
+                className="pull-to-date-btn"
+                onClick={() => onPullToDate(item.key)}
+                title={pullLabel}
+              >
+                ↓ {currentDate === today ? 'Today' : currentDate}
+              </button>
+            </div>
+          ))}
+
+          {!loading && doneItems.length > 0 && (
+            <div className="parking-done-section">
+              {doneItems.map(item => (
+                <div key={item.key} className="parking-item completed">
+                  <div className="playlist-checkbox checked" />
+                  <div className="parking-item-content">
+                    <div className="parking-item-title">{item.title}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="quick-add">
+          <form onSubmit={handleQuickAdd}>
+            <input
+              type="text"
+              className="quick-add-input"
+              placeholder="+ Add to parking lot..."
+              value={quickAddValue}
+              onChange={e => setQuickAddValue(e.target.value)}
+              disabled={isCreating}
+            />
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
