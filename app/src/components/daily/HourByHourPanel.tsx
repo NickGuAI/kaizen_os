@@ -78,11 +78,16 @@ export function HourByHourPanel({ events, currentBlock, loading }: HourByHourPan
                   {slotEvts.map(event => {
                     const themeColor = getThemeBorderColor(event.colorIndex)
                     const isCurrent = currentBlock?.id === event.id
+                    const evtStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
+                    const evtEnd = typeof event.end === 'string' ? parseISO(event.end) : event.end
+                    const durationMinutes = Math.max(30, (evtEnd.getTime() - evtStart.getTime()) / 60000)
+                    const spanSlots = Math.ceil(durationMinutes / 30)
+                    const eventMinHeight = spanSlots * 28 - 6
                     return (
                       <div
                         key={event.id}
                         className={`hour-event ${isCurrent ? 'current' : ''}`}
-                        style={{ borderLeftColor: themeColor }}
+                        style={{ borderLeftColor: themeColor, minHeight: eventMinHeight }}
                         title={event.title}
                       >
                         <span className="hour-event-title">{event.title}</span>

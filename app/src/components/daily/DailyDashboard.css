@@ -1030,7 +1030,7 @@
 
 .daily-plan-layout {
   display: grid;
-  grid-template-columns: 240px 380px 1fr;
+  grid-template-columns: 380px 380px 1fr;
   grid-template-rows: 1fr;
   gap: 16px;
   padding: 16px;
