@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useReviewOptions } from '../../hooks/useCards';
 import { Button } from '../ui';
 import { apiFetch } from '../../lib/apiFetch';
@@ -53,6 +53,21 @@ interface Props {
   weekStart: string;
 }
 
+function getEventDate(item: ClassifiedEvent): string {
+  const dt = item.event.start.dateTime || item.event.start.date || '';
+  return dt.split('T')[0];
+}
+
+function formatDayLabel(dateStr?: string): string {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export function WeekReview({ weekStart }: Props) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -62,8 +77,23 @@ export function WeekReview({ weekStart }: Props) {
   const [rememberChoices, setRememberChoices] = useState<Record<string, boolean>>({});
   const [showDeclined, setShowDeclined] = useState(false);
   const [manualOverrides, setManualOverrides] = useState<Set<string>>(new Set());
+  const [currentDayIndex, setCurrentDayIndex] = useState(0);
 
   const { data: cards = [] } = useReviewOptions();
+
+  // Group ambiguous events by day
+  const eventsByDay = useMemo(() => {
+    const allAmbiguous = data?.ambiguous || [];
+    const map = new Map<string, ClassifiedEvent[]>();
+    for (const item of allAmbiguous) {
+      const date = getEventDate(item);
+      if (!map.has(date)) {
+        map.set(date, []);
+      }
+      map.get(date)!.push(item);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [data]);
 
   useEffect(() => {
     fetchReview();
@@ -88,11 +118,16 @@ export function WeekReview({ weekStart }: Props) {
     });
   }, [data]);
 
+  // Reset to first day when data reloads
+  useEffect(() => {
+    setCurrentDayIndex(0);
+  }, [data]);
+
   async function fetchReview() {
     setLoading(true);
     try {
       const res = await apiFetch(`/api/calendar/review?weekStart=${weekStart}`, {
-        
+
       });
       const result = await res.json();
       setData(result);
@@ -184,7 +219,9 @@ export function WeekReview({ weekStart }: Props) {
     );
   }
 
-  const allDecided = (data.ambiguous || []).every((e) => e.selectedSkip || decisions[e.event.id] !== undefined);
+  const allAmbiguous = data.ambiguous || [];
+  const allDecided = allAmbiguous.every((e) => e.selectedSkip || decisions[e.event.id] !== undefined);
+  const totalPending = allAmbiguous.filter(e => !e.selectedSkip && decisions[e.event.id] === undefined).length;
 
   return (
     <div>
@@ -216,17 +253,17 @@ export function WeekReview({ weekStart }: Props) {
           padding: 'var(--space-4)',
           marginBottom: 'var(--space-6)',
           borderRadius: 'var(--radius-md)',
-          background: (data.ambiguous || []).length === 0 ? '#D1FAE5' : '#DBEAFE',
-          color: (data.ambiguous || []).length === 0 ? '#065F46' : '#1E40AF',
+          background: allAmbiguous.length === 0 ? '#D1FAE5' : '#DBEAFE',
+          color: allAmbiguous.length === 0 ? '#065F46' : '#1E40AF',
           display: 'flex',
           alignItems: 'center',
           gap: 'var(--space-2)',
         }}
       >
-        <span>{(data.ambiguous || []).length === 0 ? '✓' : '⚠'}</span>
-        {(data.ambiguous || []).length === 0
+        <span>{allAmbiguous.length === 0 ? '✓' : '⚠'}</span>
+        {allAmbiguous.length === 0
           ? 'All events classified!'
-          : `${(data.ambiguous || []).length} events need your review`}
+          : `${allAmbiguous.length} events need your review`}
       </div>
 
       {/* Summary Stats */}
@@ -253,109 +290,239 @@ export function WeekReview({ weekStart }: Props) {
         </div>
       </div>
 
-      {/* Events Needing Classification */}
-      {(() => {
-        const allAmbiguous = data.ambiguous || [];
-        const declinedCount = allAmbiguous.filter(e => e.selectedSkip).length;
-        const visibleAmbiguous = showDeclined
-          ? allAmbiguous
-          : allAmbiguous.filter(e => !e.selectedSkip);
-
-        if (allAmbiguous.length === 0) return null;
+      {/* Events Needing Classification — Day-by-Day */}
+      {allAmbiguous.length > 0 && (() => {
+        const currentDayDate = eventsByDay[currentDayIndex]?.[0];
+        const currentDayItems = eventsByDay[currentDayIndex]?.[1] || [];
+        const declinedInDay = currentDayItems.filter(e => e.selectedSkip).length;
+        const visibleDayItems = showDeclined
+          ? currentDayItems
+          : currentDayItems.filter(e => !e.selectedSkip);
+        const dayPending = currentDayItems.filter(e => !e.selectedSkip && decisions[e.event.id] === undefined).length;
+        const isLastDay = currentDayIndex === eventsByDay.length - 1;
 
         return (
-        <div
-          style={{
-            background: 'var(--color-card)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--color-sage-border-light)',
-            padding: 'var(--space-6)',
-            marginBottom: 'var(--space-6)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-            <h3 className="text-lg font-semibold">Events Needing Classification</h3>
-            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
-              {declinedCount > 0 && (
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', color: '#666' }}>
-                  <input
-                    type="checkbox"
-                    checked={showDeclined}
-                    onChange={(e) => setShowDeclined(e.target.checked)}
-                    style={{ accentColor: '#DC2626' }}
-                  />
-                  Show declined ({declinedCount})
-                </label>
-              )}
+          <div
+            style={{
+              background: 'var(--color-card)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-sage-border-light)',
+              padding: 'var(--space-6)',
+              marginBottom: 'var(--space-6)',
+            }}
+          >
+            {/* Section header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h3 className="text-lg font-semibold">Events Needing Classification</h3>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                <button
+                  onClick={handleReclassify}
+                  disabled={reclassifying}
+                  style={{
+                    background: 'var(--color-sage-light)',
+                    color: 'var(--color-sage)',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: '1px solid var(--color-sage-border)',
+                    cursor: reclassifying ? 'not-allowed' : 'pointer',
+                    opacity: reclassifying ? 0.6 : 1,
+                  }}
+                >
+                  {reclassifying ? '✨ Classifying...' : '✨ Re-classify with AI'}
+                </button>
+                <span
+                  style={{
+                    background: totalPending > 0 ? '#F39C12' : '#27AE60',
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {totalPending > 0 ? `${totalPending} total pending` : 'All decided'}
+                </span>
+              </div>
+            </div>
+
+            {/* Day dot indicators */}
+            {eventsByDay.length > 1 && (
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 12 }}>
+                {eventsByDay.map(([date, events], i) => {
+                  const pending = events.filter(e => !e.selectedSkip && decisions[e.event.id] === undefined).length;
+                  const allDone = pending === 0;
+                  return (
+                    <button
+                      key={date}
+                      onClick={() => setCurrentDayIndex(i)}
+                      title={formatDayLabel(date)}
+                      style={{
+                        width: i === currentDayIndex ? 24 : 8,
+                        height: 8,
+                        borderRadius: 4,
+                        border: 'none',
+                        background: i === currentDayIndex
+                          ? 'var(--color-sage)'
+                          : allDone
+                            ? '#27AE60'
+                            : '#F39C12',
+                        cursor: 'pointer',
+                        padding: 0,
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Day navigator */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 12px',
+                marginBottom: 16,
+                background: 'var(--color-bg)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-sage-border-light)',
+              }}
+            >
               <button
-                onClick={handleReclassify}
-                disabled={reclassifying}
+                onClick={() => setCurrentDayIndex(i => Math.max(0, i - 1))}
+                disabled={currentDayIndex === 0}
                 style={{
-                  background: 'var(--color-sage-light)',
-                  color: 'var(--color-sage)',
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  fontWeight: 600,
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
                   border: '1px solid var(--color-sage-border)',
-                  cursor: reclassifying ? 'not-allowed' : 'pointer',
-                  opacity: reclassifying ? 0.6 : 1,
-                }}
-              >
-                {reclassifying ? '✨ Classifying...' : '✨ Re-classify with AI'}
-              </button>
-              <span
-                style={{
-                  background: '#F39C12',
-                  color: 'white',
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  fontSize: '12px',
+                  background: currentDayIndex === 0 ? 'rgba(0,0,0,0.04)' : 'var(--color-sage-light)',
+                  color: currentDayIndex === 0 ? '#ccc' : 'var(--color-sage)',
+                  cursor: currentDayIndex === 0 ? 'not-allowed' : 'pointer',
+                  fontSize: 18,
                   fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
-                {visibleAmbiguous.filter(e => !e.selectedSkip).length} remaining
-              </span>
+                ‹
+              </button>
+
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>
+                  {formatDayLabel(currentDayDate)}
+                </div>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                  Day {currentDayIndex + 1} of {eventsByDay.length}
+                  {' · '}
+                  {dayPending > 0 ? `${dayPending} pending` : '✓ all decided'}
+                  {declinedInDay > 0 && !showDeclined && (
+                    <span> · <button
+                      onClick={() => setShowDeclined(true)}
+                      style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline' }}
+                    >
+                      {declinedInDay} declined
+                    </button></span>
+                  )}
+                  {showDeclined && declinedInDay > 0 && (
+                    <span> · <button
+                      onClick={() => setShowDeclined(false)}
+                      style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline' }}
+                    >
+                      hide declined
+                    </button></span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setCurrentDayIndex(i => Math.min(eventsByDay.length - 1, i + 1))}
+                disabled={isLastDay}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: '1px solid var(--color-sage-border)',
+                  background: isLastDay ? 'rgba(0,0,0,0.04)' : 'var(--color-sage-light)',
+                  color: isLastDay ? '#ccc' : 'var(--color-sage)',
+                  cursor: isLastDay ? 'not-allowed' : 'pointer',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                ›
+              </button>
+            </div>
+
+            {/* Event cards for current day */}
+            {visibleDayItems.map((item, index) => {
+              const topSuggestion = item.suggestions?.reduce((a, b) =>
+                b.confidence > a.confidence ? b : a
+              , item.suggestions?.[0]);
+              const topSuggestionCardId = topSuggestion?.cardId;
+              const isAutoSelected = !manualOverrides.has(item.event.id);
+
+              return (
+                <EventCard
+                  key={`ambiguous-${index}-${item.accountId}-${item.event.calendarId}-${item.event.id}`}
+                  item={item}
+                  cards={cards}
+                  selectedCardId={decisions[item.event.id]}
+                  topSuggestionCardId={topSuggestionCardId}
+                  isAutoSelected={isAutoSelected}
+                  onSelect={(cardId) => {
+                    setDecisions((d) => ({ ...d, [item.event.id]: cardId }));
+                    setManualOverrides((prev) => new Set([...prev, item.event.id]));
+                  }}
+                  rememberChoice={rememberChoices[item.event.id] || false}
+                  onRememberChange={(checked) =>
+                    setRememberChoices((r) => ({ ...r, [item.event.id]: checked }))
+                  }
+                />
+              );
+            })}
+
+            {/* Bottom actions */}
+            <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+              {!isLastDay ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setCurrentDayIndex(i => Math.min(eventsByDay.length - 1, i + 1))}
+                    style={{ flex: 1 }}
+                  >
+                    Next Day →
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleCommit}
+                    disabled={!allDecided || syncing}
+                    style={{ flex: 1 }}
+                  >
+                    {syncing ? 'Saving...' : `Confirm & Log Time${totalPending > 0 ? ` (${totalPending} pending)` : ''}`}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={handleCommit}
+                  disabled={!allDecided || syncing}
+                  style={{ width: '100%' }}
+                >
+                  {syncing ? 'Saving...' : `Confirm & Log Time${totalPending > 0 ? ` (${totalPending} pending)` : ''}`}
+                </Button>
+              )}
             </div>
           </div>
-
-          {visibleAmbiguous.map((item, index) => {
-            // Find the top suggestion for this event
-            const topSuggestion = item.suggestions?.reduce((a, b) =>
-              b.confidence > a.confidence ? b : a
-            , item.suggestions[0]);
-            const topSuggestionCardId = topSuggestion?.cardId;
-            const isAutoSelected = !manualOverrides.has(item.event.id);
-
-            return (
-              <EventCard
-                key={`ambiguous-${index}-${item.accountId}-${item.event.calendarId}-${item.event.id}`}
-                item={item}
-                cards={cards}
-                selectedCardId={decisions[item.event.id]}
-                topSuggestionCardId={topSuggestionCardId}
-                isAutoSelected={isAutoSelected}
-                onSelect={(cardId) => {
-                  setDecisions((d) => ({ ...d, [item.event.id]: cardId }));
-                  setManualOverrides((prev) => new Set([...prev, item.event.id]));
-                }}
-                rememberChoice={rememberChoices[item.event.id] || false}
-                onRememberChange={(checked) =>
-                  setRememberChoices((r) => ({ ...r, [item.event.id]: checked }))
-                }
-              />
-            );
-          })}
-
-          <Button
-            variant="primary"
-            onClick={handleCommit}
-            disabled={!allDecided || syncing}
-            style={{ width: '100%', marginTop: 'var(--space-4)' }}
-          >
-            {syncing ? 'Saving...' : `Confirm & Log Time (${visibleAmbiguous.filter(e => !e.selectedSkip).length} pending)`}
-          </Button>
-        </div>
         );
       })()}
 

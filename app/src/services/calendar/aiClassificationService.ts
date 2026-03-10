@@ -216,8 +216,10 @@ export async function getAISuggestions(
       })
       .filter((s): s is CardSuggestion => s !== null);
 
-    // Save to database (with prompt and response for debugging)
-    await setCachedSuggestions(userId, eventTitle, cardSuggestions, prompt, rawResponse, latencyMs);
+    // Save to database (skip very long titles that exceed the VarChar(500) column limit)
+    if (eventTitle.length <= 500) {
+      await setCachedSuggestions(userId, eventTitle, cardSuggestions, prompt, rawResponse, latencyMs);
+    }
 
     result.set(eventTitle, cardSuggestions);
   }

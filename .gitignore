@@ -1,3 +1,37 @@
-release-tmp/
+.DS_Store
+.factory/
+.general-env
+
+# Exclude sub-repos (they have their own git tracking)
+Gehirn/
+openclaw/
+apps/gemini_lobster/
+external-projects/
+
 node_modules/
-*.db
+
+# Turborepo
+.turbo/
+
+# Build outputs
+dist/
+
+# legion-smash local artifacts
+.legion-smash-artifacts/
+
+# khan runtime state
+.khan/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# pnpm debug
+pnpm-debug.log*
+
+# Secrets (DO NOT COMMIT)
+.env
+.*-env
+
+# Infinity local config
+apps/infinity/infinity.config.json

@@ -11,6 +11,7 @@ export class PrismaActionRepository implements ActionRepository {
       where: {
         userId,
         unitType: { in: ACTION_UNIT_TYPES },
+        parentId: { not: null },
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -48,6 +49,7 @@ export class PrismaActionRepository implements ActionRepository {
         userId,
         unitType: { in: ACTION_UNIT_TYPES },
         status: 'in_progress',
+        parentId: { not: null },
       },
       orderBy: { updatedAt: 'desc' },
     });
