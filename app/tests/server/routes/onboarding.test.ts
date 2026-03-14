@@ -1,28 +1,140 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import express, { Express, NextFunction, Request, Response } from 'express'
 import request from 'supertest'
-import express, { Express, Request, Response, NextFunction } from 'express'
 
-// Mock prisma
-vi.mock('@/lib/db', () => ({
-  prisma: {
+const { prismaMock, callGemini } = vi.hoisted(() => ({
+  prismaMock: {
+    onboardingProfile: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    calendarAccount: {
+      findMany: vi.fn(),
+    },
+    user: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
     cachedCalendarEvent: {
       findMany: vi.fn(),
     },
   },
+  callGemini: vi.fn(),
 }))
 
-// Mock fetch for Claude API
-const mockFetch = vi.fn()
-global.fetch = mockFetch
+vi.mock('@/lib/db', () => ({
+  prisma: prismaMock,
+}))
+
+vi.mock('@/services/ai/geminiService', () => ({
+  callGemini,
+}))
 
 import onboardingRouter from '@/server/routes/onboarding'
-import { prisma } from '@/lib/db'
 
-describe('Onboarding API Routes', () => {
+interface InMemoryState {
+  profile: any | null
+  settings: Record<string, unknown>
+  accounts: Array<{
+    id: string
+    provider: string
+    email: string
+    createdAt: Date
+  }>
+  cachedEvents: Array<{
+    summary: string
+    recurringEventId: string | null
+    startDateTime: Date
+  }>
+}
+
+function buildProfile(partial: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'profile-1',
+    userId: 'user-123',
+    flowVersion: 2,
+    currentStep: 'connect',
+    connectState: {},
+    seed: {},
+    student: {},
+    gaze: {},
+    kaizenExperiment: {},
+    synthesisStatus: 'idle',
+    completedAt: null,
+    createdAt: new Date('2026-03-14T00:00:00.000Z'),
+    updatedAt: new Date('2026-03-14T00:00:00.000Z'),
+    ...partial,
+  }
+}
+
+const validSeed = {
+  coreIdentity: 'Builder and operator',
+  startingPoint: 'Transitioning from reactive work to deliberate work',
+  narrative:
+    'I am currently fragmented across priorities and want a stable, focused operating rhythm. I need to define the work that compounds and remove low-leverage commitments that consume creative bandwidth.',
+}
+
+const validStudent = {
+  becoming: 'A disciplined system architect with sharp execution',
+  horizon: '1_year',
+  narrative:
+    'I am becoming someone who can hold long arcs, execute weekly, and protect depth work. I will operate with clear standards, explicit tradeoffs, and consistent review loops that make progress visible.',
+}
+
+const validGaze = {
+  desires:
+    'I want to produce one meaningful artifact every week, improve my physical and emotional baseline, and build trust with collaborators by shipping consistently. I want my calendar to reflect values, not drift.',
+  reflection:
+    'My main friction is overcommitting and avoiding difficult prioritization conversations. I am willing to cut vanity projects, protect deep work blocks, and accept short-term discomfort in exchange for coherent momentum.',
+  nonNegotiables: ['sleep 7h', 'weekly review'],
+}
+
+describe('Onboarding API routes', () => {
   let app: Express
-  const originalEnv = process.env.ANTHROPIC_API_KEY
+  let memory: InMemoryState
 
   beforeEach(() => {
+    memory = {
+      profile: null,
+      settings: {
+        onboarding_progress: {
+          currentStep: 0,
+          completedAt: null,
+          steps: {},
+        },
+      },
+      accounts: [],
+      cachedEvents: [],
+    }
+
+    prismaMock.onboardingProfile.findUnique.mockImplementation(async ({ where }: { where: { userId: string } }) => {
+      return memory.profile && memory.profile.userId === where.userId ? memory.profile : null
+    })
+
+    prismaMock.onboardingProfile.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      memory.profile = buildProfile(data)
+      return memory.profile
+    })
+
+    prismaMock.onboardingProfile.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      memory.profile = buildProfile({ ...(memory.profile || {}), ...data, updatedAt: new Date() })
+      return memory.profile
+    })
+
+    prismaMock.calendarAccount.findMany.mockImplementation(async () => memory.accounts)
+
+    prismaMock.user.findUnique.mockImplementation(async () => ({ settings: memory.settings }))
+
+    prismaMock.user.update.mockImplementation(async ({ data }: { data: { settings: Record<string, unknown> } }) => {
+      memory.settings = data.settings
+      return { settings: memory.settings }
+    })
+
+    prismaMock.cachedCalendarEvent.findMany.mockImplementation(async () => memory.cachedEvents)
+
+    callGemini.mockReset()
+
     app = express()
     app.use(express.json())
     app.use((req: Request, _res: Response, next: NextFunction) => {
@@ -30,213 +142,300 @@ describe('Onboarding API Routes', () => {
       next()
     })
     app.use('/api/onboarding', onboardingRouter)
-    process.env.ANTHROPIC_API_KEY = 'test-api-key'
-    vi.clearAllMocks()
   })
 
-  afterEach(() => {
-    process.env.ANTHROPIC_API_KEY = originalEnv
-    vi.clearAllMocks()
+  it('GET /state returns default locked connect step when incomplete', async () => {
+    const response = await request(app).get('/api/onboarding/state')
+
+    expect(response.status).toBe(200)
+    expect(response.body.currentStepKey).toBe('connect')
+    expect(response.body.maxAllowedStep).toBe(0)
+    expect(response.body.stepValidation.connect.isValid).toBe(false)
+    expect(response.body.stepValidation.connect.errors[0]).toContain('Connect at least one account')
   })
 
-  describe('POST /generate-suggestions', () => {
-    it('returns empty suggestions when no calendar events and no journal', async () => {
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          content: [{ text: '{"themes": [], "gates": [], "routines": []}' }],
-        }),
+  it('GET /state returns 500 when state loading fails', async () => {
+    prismaMock.onboardingProfile.findUnique.mockRejectedValueOnce(new Error('database unavailable'))
+
+    const response = await request(app).get('/api/onboarding/state')
+
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Failed to load onboarding state')
+  })
+
+  it('PUT /state rejects Seed save before connect is complete', async () => {
+    const response = await request(app)
+      .put('/api/onboarding/state')
+      .send({
+        currentStep: 1,
+        seed: validSeed,
       })
 
-      const response = await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
+    expect(response.status).toBe(409)
+    expect(response.body.error).toContain('Complete connect step')
+  })
 
-      expect(response.status).toBe(200)
-      expect(response.body).toHaveProperty('themes')
-      expect(response.body).toHaveProperty('gates')
-      expect(response.body).toHaveProperty('routines')
-    })
+  it('PUT /state allows Seed save after account is connected', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
 
-    it('processes calendar events and generates suggestions', async () => {
-      const mockEvents = [
-        {
-          id: '1',
-          summary: 'Gym workout',
-          description: null,
-          startDateTime: new Date('2026-01-10'),
-          endDateTime: new Date('2026-01-10'),
-          isAllDay: false,
-          recurringEventId: 'rec-1',
-        },
-        {
-          id: '2',
-          summary: 'Team meeting',
-          description: null,
-          startDateTime: new Date('2026-01-11'),
-          endDateTime: new Date('2026-01-11'),
-          isAllDay: false,
-          recurringEventId: 'rec-2',
-        },
-      ]
-
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue(mockEvents)
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          content: [{
-            text: JSON.stringify({
-              themes: [{ id: 't1', name: 'Health', description: 'Fitness focus', icon: '💪' }],
-              gates: [{ id: 'g1', title: 'Complete workout plan', theme: 'Health', deadline: '2026-03-01' }],
-              routines: [{ id: 'r1', title: 'Morning workout', frequency: 'Daily', theme: 'Health' }],
-            }),
-          }],
-        }),
+    const response = await request(app)
+      .put('/api/onboarding/state')
+      .send({
+        currentStep: 1,
+        seed: validSeed,
       })
 
-      const response = await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
+    expect(response.status).toBe(200)
+    expect(response.body.currentStepKey).toBe('seed')
+    expect(response.body.seed.coreIdentity).toBe(validSeed.coreIdentity)
+    expect(response.body.stepValidation.seed.isValid).toBe(true)
+  })
 
-      expect(response.status).toBe(200)
-      expect(response.body.themes).toHaveLength(1)
-      expect(response.body.themes[0].name).toBe('Health')
-      expect(response.body.gates).toHaveLength(1)
-      expect(response.body.routines).toHaveLength(1)
-    })
+  it('PUT /state rejects Student save when Seed is not valid', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
 
-    it('includes journal text in the analysis', async () => {
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          content: [{ text: '{"themes": [], "gates": [], "routines": []}' }],
-        }),
+    const response = await request(app)
+      .put('/api/onboarding/state')
+      .send({
+        currentStep: 2,
+        student: validStudent,
       })
 
-      await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({ journalText: 'I want to focus on health and career growth' })
+    expect(response.status).toBe(409)
+    expect(response.body.error).toContain('Complete Seed')
+  })
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.anthropic.com/v1/messages',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('I want to focus on health and career growth'),
-        })
-      )
-    })
+  it('PUT /identity persists section payload and returns state envelope', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
 
-    it('returns 503 when ANTHROPIC_API_KEY is not configured', async () => {
-      delete process.env.ANTHROPIC_API_KEY
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-
-      const response = await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
-
-      expect(response.status).toBe(503)
-      expect(response.body.error).toContain('not configured')
-    })
-
-    it('returns 500 when Claude API returns error', async () => {
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-      mockFetch.mockResolvedValue({
-        ok: false,
-        text: () => Promise.resolve('API rate limit exceeded'),
+    const response = await request(app)
+      .put('/api/onboarding/identity')
+      .send({
+        section: 'seed',
+        data: validSeed,
       })
 
-      const response = await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
+    expect(response.status).toBe(200)
+    expect(response.body.ok).toBe(true)
+    expect(response.body.state.seed.coreIdentity).toBe(validSeed.coreIdentity)
+    expect(response.body.state.currentStepKey).toBe('seed')
+  })
 
-      expect(response.status).toBe(500)
-      expect(response.body.error).toBe('Failed to generate suggestions')
-    })
-
-    it('handles markdown-wrapped JSON response from Claude', async () => {
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          content: [{
-            text: '```json\n{"themes": [{"id": "t1", "name": "Test", "description": "Test theme", "icon": "🎯"}], "gates": [], "routines": []}\n```',
-          }],
-        }),
+  it('PUT /identity rejects invalid section values', async () => {
+    const response = await request(app)
+      .put('/api/onboarding/identity')
+      .send({
+        section: 'unknown',
+        data: {},
       })
 
-      const response = await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
+    expect(response.status).toBe(400)
+    expect(response.body.error).toContain('Invalid section')
+  })
 
-      expect(response.status).toBe(200)
-      expect(response.body.themes).toHaveLength(1)
-      expect(response.body.themes[0].name).toBe('Test')
-    })
+  it('PUT /identity returns 500 when identity persistence fails', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+    prismaMock.onboardingProfile.update.mockRejectedValueOnce(new Error('write failed'))
 
-    it('returns empty arrays when Claude returns invalid JSON', async () => {
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          content: [{ text: 'This is not valid JSON at all' }],
-        }),
+    const response = await request(app)
+      .put('/api/onboarding/identity')
+      .send({
+        section: 'seed',
+        data: validSeed,
       })
 
-      const response = await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Failed to save onboarding identity')
+  })
 
-      expect(response.status).toBe(500)
+  it('POST /connect/start supports n2f contract with google fallback', async () => {
+    const response = await request(app)
+      .post('/api/onboarding/connect/start')
+      .send({ provider: 'n2f' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.provider).toBe('n2f')
+    expect(response.body.resolvedProvider).toBe('google')
+    expect(response.body.fallbackUsed).toBe(true)
+    expect(response.body.startUrl).toBe('/api/calendar/google/authorize?redirect=/onboarding')
+  })
+
+  it('POST /synthesize-experiment enforces quality gates', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+
+    memory.profile = buildProfile({
+      currentStep: 'gaze',
+      seed: { coreIdentity: 'short', narrative: 'too short' },
+      student: {},
+      gaze: {},
     })
 
-    it('validates array types in suggestions response', async () => {
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          content: [{
-            text: JSON.stringify({
-              themes: 'not an array',
-              gates: null,
-              routines: undefined,
-            }),
-          }],
-        }),
+    const response = await request(app).post('/api/onboarding/synthesize-experiment')
+
+    expect(response.status).toBe(422)
+    expect(response.body.error).toContain('Quality gates failed')
+    expect(callGemini).not.toHaveBeenCalled()
+  })
+
+  it('POST /synthesize-experiment persists normalized experiment output', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+
+    memory.profile = buildProfile({
+      currentStep: 'gaze',
+      seed: validSeed,
+      student: validStudent,
+      gaze: validGaze,
+      connectState: { provider: 'n2f' },
+    })
+
+    memory.cachedEvents = [
+      {
+        summary: 'Weekly planning',
+        recurringEventId: 'rec-1',
+        startDateTime: new Date('2026-03-13T08:00:00.000Z'),
+      },
+    ]
+
+    callGemini.mockResolvedValue(
+      JSON.stringify({
+        title: 'Focus Sprint',
+        thesis: 'Small weekly experiments create reliable momentum.',
+        northStar: 'Ship one meaningful artifact each week',
+        successSignals: ['1 weekly artifact shipped', '2 deep work blocks/day'],
+        guardrails: ['No new projects during sprint'],
+        firstActions: [
+          { title: 'Block deep work', why: 'Protect execution time', window: 'Monday morning' },
+          { title: 'Define weekly artifact', why: 'Constrain scope', window: 'Monday noon' },
+        ],
       })
+    )
 
-      const response = await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
+    const response = await request(app).post('/api/onboarding/synthesize-experiment')
 
-      expect(response.status).toBe(200)
-      expect(Array.isArray(response.body.themes)).toBe(true)
-      expect(Array.isArray(response.body.gates)).toBe(true)
-      expect(Array.isArray(response.body.routines)).toBe(true)
-      expect(response.body.themes).toHaveLength(0)
-      expect(response.body.gates).toHaveLength(0)
-      expect(response.body.routines).toHaveLength(0)
+    expect(response.status).toBe(200)
+    expect(response.body.synthesisStatus).toBe('ready')
+    expect(response.body.kaizenExperiment.experiment.title).toBe('Focus Sprint')
+    expect(memory.profile.synthesisStatus).toBe('ready')
+  })
+
+  it('POST /complete requires synthesized experiment draft', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+
+    memory.profile = buildProfile({
+      currentStep: 'gaze',
+      seed: validSeed,
+      student: validStudent,
+      gaze: validGaze,
+      kaizenExperiment: {},
     })
 
-    it('limits calendar events query with take parameter', async () => {
-      vi.mocked(prisma.cachedCalendarEvent.findMany).mockResolvedValue([])
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({
-          content: [{ text: '{"themes": [], "gates": [], "routines": []}' }],
-        }),
-      })
+    const response = await request(app).post('/api/onboarding/complete')
 
-      await request(app)
-        .post('/api/onboarding/generate-suggestions')
-        .send({})
+    expect(response.status).toBe(422)
+    expect(response.body.error).toContain('Generate your Kaizen Experiment')
+  })
 
-      expect(prisma.cachedCalendarEvent.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          take: 500,
-        })
-      )
+  it('POST /complete marks profile and legacy onboarding progress as completed', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+
+    memory.profile = buildProfile({
+      currentStep: 'gaze',
+      seed: validSeed,
+      student: validStudent,
+      gaze: validGaze,
+      kaizenExperiment: { experiment: { title: 'Focus Sprint' } },
+      synthesisStatus: 'ready',
     })
+
+    const response = await request(app).post('/api/onboarding/complete')
+
+    expect(response.status).toBe(200)
+    expect(typeof response.body.completedAt).toBe('string')
+    expect(memory.profile.completedAt).toBeInstanceOf(Date)
+
+    const onboardingProgress = (memory.settings.onboarding_progress || {}) as Record<string, unknown>
+    expect(typeof onboardingProgress.completedAt).toBe('string')
+  })
+
+  it('POST /complete returns 500 when completion persistence fails', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+
+    memory.profile = buildProfile({
+      currentStep: 'gaze',
+      seed: validSeed,
+      student: validStudent,
+      gaze: validGaze,
+      kaizenExperiment: { experiment: { title: 'Focus Sprint' } },
+      synthesisStatus: 'ready',
+    })
+    prismaMock.user.update.mockRejectedValueOnce(new Error('write failed'))
+
+    const response = await request(app).post('/api/onboarding/complete')
+
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Failed to complete onboarding')
   })
 })
