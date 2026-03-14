@@ -1188,14 +1188,18 @@ export default function LandingPage() {
 
   // Sync plan mode with URL param (?mode=plan)
   const [searchParams] = useSearchParams()
+  const urlWantsPlan = searchParams.get('mode') === 'plan'
+  const prevUrlWantsPlanRef = useRef(urlWantsPlan)
   useEffect(() => {
-    const wantsPlan = searchParams.get('mode') === 'plan'
-    if (wantsPlan && !planningMode) {
+    const prev = prevUrlWantsPlanRef.current
+    prevUrlWantsPlanRef.current = urlWantsPlan
+    // Only act on transitions, not on every render
+    if (urlWantsPlan && !prev) {
       handlePlanModeToggle(true)
-    } else if (!wantsPlan && planningMode) {
+    } else if (!urlWantsPlan && prev && planningMode) {
       handlePlanModeToggle(false)
     }
-  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [urlWantsPlan]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AppLayout onThemeClick={(id) => navigate('/theme/' + id)}>
