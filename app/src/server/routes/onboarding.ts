@@ -520,31 +520,35 @@ router.get('/state', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' })
   }
 
-  const [profile, accounts, settings] = await Promise.all([
-    prisma.onboardingProfile.findUnique({ where: { userId } }),
-    getConnectedAccounts(userId),
-    loadUserSettings(userId),
-  ])
+  try {
+    const [profile, accounts, settings] = await Promise.all([
+      prisma.onboardingProfile.findUnique({ where: { userId } }),
+      getConnectedAccounts(userId),
+      loadUserSettings(userId),
+    ])
 
-  const state = buildStateResponse({
-    profile: profile
-      ? {
-          flowVersion: profile.flowVersion,
-          currentStep: normalizeStep(profile.currentStep),
-          connectState: toObject(profile.connectState),
-          seed: toObject(profile.seed),
-          student: toObject(profile.student),
-          gaze: toObject(profile.gaze),
-          kaizenExperiment: toObject(profile.kaizenExperiment),
-          synthesisStatus: profile.synthesisStatus,
-          completedAt: profile.completedAt,
-        }
-      : null,
-    accounts,
-    legacyCompletedAt: getLegacyCompletedAt(settings),
-  })
+    const state = buildStateResponse({
+      profile: profile
+        ? {
+            flowVersion: profile.flowVersion,
+            currentStep: normalizeStep(profile.currentStep),
+            connectState: toObject(profile.connectState),
+            seed: toObject(profile.seed),
+            student: toObject(profile.student),
+            gaze: toObject(profile.gaze),
+            kaizenExperiment: toObject(profile.kaizenExperiment),
+            synthesisStatus: profile.synthesisStatus,
+            completedAt: profile.completedAt,
+          }
+        : null,
+      accounts,
+      legacyCompletedAt: getLegacyCompletedAt(settings),
+    })
 
-  return res.json(state)
+    return res.json(state)
+  } catch {
+    return res.status(500).json({ error: 'Failed to load onboarding state' })
+  }
 })
 
 // PUT /api/onboarding/state
@@ -554,106 +558,110 @@ router.put('/state', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' })
   }
 
-  const payload = toObject(req.body)
+  try {
+    const payload = toObject(req.body)
 
-  const [profile, accounts] = await Promise.all([
-    ensureProfileForWrite(userId),
-    getConnectedAccounts(userId),
-  ])
+    const [profile, accounts] = await Promise.all([
+      ensureProfileForWrite(userId),
+      getConnectedAccounts(userId),
+    ])
 
-  const incomingSeed = Object.prototype.hasOwnProperty.call(payload, 'seed') ? sanitizeSeed(toObject(payload.seed)) : null
-  const incomingStudent = Object.prototype.hasOwnProperty.call(payload, 'student')
-    ? sanitizeStudent(toObject(payload.student))
-    : null
-  const incomingGaze = Object.prototype.hasOwnProperty.call(payload, 'gaze') ? sanitizeGaze(toObject(payload.gaze)) : null
+    const incomingSeed = Object.prototype.hasOwnProperty.call(payload, 'seed') ? sanitizeSeed(toObject(payload.seed)) : null
+    const incomingStudent = Object.prototype.hasOwnProperty.call(payload, 'student')
+      ? sanitizeStudent(toObject(payload.student))
+      : null
+    const incomingGaze = Object.prototype.hasOwnProperty.call(payload, 'gaze') ? sanitizeGaze(toObject(payload.gaze)) : null
 
-  const nextSeed = incomingSeed ?? sanitizeSeed(toObject(profile.seed))
-  const nextStudent = incomingStudent ?? sanitizeStudent(toObject(profile.student))
-  const nextGaze = incomingGaze ?? sanitizeGaze(toObject(profile.gaze))
+    const nextSeed = incomingSeed ?? sanitizeSeed(toObject(profile.seed))
+    const nextStudent = incomingStudent ?? sanitizeStudent(toObject(profile.student))
+    const nextGaze = incomingGaze ?? sanitizeGaze(toObject(profile.gaze))
 
-  const validation = computeValidation(
-    {
-      seed: nextSeed,
-      student: nextStudent,
-      gaze: nextGaze,
-    },
-    accounts
-  )
-
-  if (incomingSeed && !validation.stepValidation.connect.isValid) {
-    return res.status(409).json({ error: 'Complete connect step before saving Seed.' })
-  }
-
-  if (incomingStudent && (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid)) {
-    return res.status(409).json({ error: 'Complete Seed before saving Student.' })
-  }
-
-  if (
-    incomingGaze &&
-    (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid || !validation.stepValidation.student.isValid)
-  ) {
-    return res.status(409).json({ error: 'Complete Student before saving Gaze.' })
-  }
-
-  const requestedStep = Object.prototype.hasOwnProperty.call(payload, 'currentStep')
-    ? normalizeStep(payload.currentStep)
-    : normalizeStep(profile.currentStep)
-
-  const requestedStepIdx = stepToIndex(requestedStep)
-  if (requestedStepIdx > validation.maxAllowedStep) {
-    return res.status(409).json({
-      error: 'Requested step is locked until earlier steps are complete.',
-      maxAllowedStep: validation.maxAllowedStep,
-    })
-  }
-
-  const safeStep = STEP_ORDER[Math.min(requestedStepIdx, validation.maxAllowedStep)]
-
-  const providerValue = isValidProvider(payload.provider) ? payload.provider : valueAsString(toObject(profile.connectState).provider)
-  const isFallback = providerValue === 'n2f'
-
-  const nextConnectState = {
-    ...toObject(profile.connectState),
-    provider: providerValue || 'n2f',
-    resolvedProvider: isFallback ? 'google' : providerValue || 'google',
-    fallbackProvider: 'google',
-    connected: accounts.length > 0,
-    connectedAccountIds: accounts.map((account) => account.id),
-    connectedAccounts: accounts,
-    lastCheckedAt: new Date().toISOString(),
-  }
-
-  const updatedProfile = await prisma.onboardingProfile.update({
-    where: { userId },
-    data: {
-      flowVersion: 2,
-      currentStep: safeStep,
-      connectState: asJsonValue(nextConnectState),
-      seed: asJsonValue(nextSeed),
-      student: asJsonValue(nextStudent),
-      gaze: asJsonValue(nextGaze),
-    },
-  })
-
-  const settings = await loadUserSettings(userId)
-
-  return res.json(
-    buildStateResponse({
-      profile: {
-        flowVersion: updatedProfile.flowVersion,
-        currentStep: normalizeStep(updatedProfile.currentStep),
-        connectState: toObject(updatedProfile.connectState),
-        seed: toObject(updatedProfile.seed),
-        student: toObject(updatedProfile.student),
-        gaze: toObject(updatedProfile.gaze),
-        kaizenExperiment: toObject(updatedProfile.kaizenExperiment),
-        synthesisStatus: updatedProfile.synthesisStatus,
-        completedAt: updatedProfile.completedAt,
+    const validation = computeValidation(
+      {
+        seed: nextSeed,
+        student: nextStudent,
+        gaze: nextGaze,
       },
-      accounts,
-      legacyCompletedAt: getLegacyCompletedAt(settings),
+      accounts
+    )
+
+    if (incomingSeed && !validation.stepValidation.connect.isValid) {
+      return res.status(409).json({ error: 'Complete connect step before saving Seed.' })
+    }
+
+    if (incomingStudent && (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid)) {
+      return res.status(409).json({ error: 'Complete Seed before saving Student.' })
+    }
+
+    if (
+      incomingGaze &&
+      (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid || !validation.stepValidation.student.isValid)
+    ) {
+      return res.status(409).json({ error: 'Complete Student before saving Gaze.' })
+    }
+
+    const requestedStep = Object.prototype.hasOwnProperty.call(payload, 'currentStep')
+      ? normalizeStep(payload.currentStep)
+      : normalizeStep(profile.currentStep)
+
+    const requestedStepIdx = stepToIndex(requestedStep)
+    if (requestedStepIdx > validation.maxAllowedStep) {
+      return res.status(409).json({
+        error: 'Requested step is locked until earlier steps are complete.',
+        maxAllowedStep: validation.maxAllowedStep,
+      })
+    }
+
+    const safeStep = STEP_ORDER[Math.min(requestedStepIdx, validation.maxAllowedStep)]
+
+    const providerValue = isValidProvider(payload.provider) ? payload.provider : valueAsString(toObject(profile.connectState).provider)
+    const isFallback = providerValue === 'n2f'
+
+    const nextConnectState = {
+      ...toObject(profile.connectState),
+      provider: providerValue || 'n2f',
+      resolvedProvider: isFallback ? 'google' : providerValue || 'google',
+      fallbackProvider: 'google',
+      connected: accounts.length > 0,
+      connectedAccountIds: accounts.map((account) => account.id),
+      connectedAccounts: accounts,
+      lastCheckedAt: new Date().toISOString(),
+    }
+
+    const updatedProfile = await prisma.onboardingProfile.update({
+      where: { userId },
+      data: {
+        flowVersion: 2,
+        currentStep: safeStep,
+        connectState: asJsonValue(nextConnectState),
+        seed: asJsonValue(nextSeed),
+        student: asJsonValue(nextStudent),
+        gaze: asJsonValue(nextGaze),
+      },
     })
-  )
+
+    const settings = await loadUserSettings(userId)
+
+    return res.json(
+      buildStateResponse({
+        profile: {
+          flowVersion: updatedProfile.flowVersion,
+          currentStep: normalizeStep(updatedProfile.currentStep),
+          connectState: toObject(updatedProfile.connectState),
+          seed: toObject(updatedProfile.seed),
+          student: toObject(updatedProfile.student),
+          gaze: toObject(updatedProfile.gaze),
+          kaizenExperiment: toObject(updatedProfile.kaizenExperiment),
+          synthesisStatus: updatedProfile.synthesisStatus,
+          completedAt: updatedProfile.completedAt,
+        },
+        accounts,
+        legacyCompletedAt: getLegacyCompletedAt(settings),
+      })
+    )
+  } catch {
+    return res.status(500).json({ error: 'Failed to save onboarding state' })
+  }
 })
 
 // PUT /api/onboarding/identity
@@ -663,82 +671,86 @@ router.put('/identity', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' })
   }
 
-  const payload = toObject(req.body)
-  const section = valueAsString(payload.section).toLowerCase()
-  const sectionData = toObject(payload.data)
+  try {
+    const payload = toObject(req.body)
+    const section = valueAsString(payload.section).toLowerCase()
+    const sectionData = toObject(payload.data)
 
-  if (!['seed', 'student', 'gaze'].includes(section)) {
-    return res.status(400).json({ error: 'Invalid section. Use seed, student, or gaze.' })
-  }
+    if (!['seed', 'student', 'gaze'].includes(section)) {
+      return res.status(400).json({ error: 'Invalid section. Use seed, student, or gaze.' })
+    }
 
-  const [profile, accounts] = await Promise.all([
-    ensureProfileForWrite(userId),
-    getConnectedAccounts(userId),
-  ])
+    const [profile, accounts] = await Promise.all([
+      ensureProfileForWrite(userId),
+      getConnectedAccounts(userId),
+    ])
 
-  const nextSeed = section === 'seed' ? sanitizeSeed(sectionData) : sanitizeSeed(toObject(profile.seed))
-  const nextStudent = section === 'student' ? sanitizeStudent(sectionData) : sanitizeStudent(toObject(profile.student))
-  const nextGaze = section === 'gaze' ? sanitizeGaze(sectionData) : sanitizeGaze(toObject(profile.gaze))
+    const nextSeed = section === 'seed' ? sanitizeSeed(sectionData) : sanitizeSeed(toObject(profile.seed))
+    const nextStudent = section === 'student' ? sanitizeStudent(sectionData) : sanitizeStudent(toObject(profile.student))
+    const nextGaze = section === 'gaze' ? sanitizeGaze(sectionData) : sanitizeGaze(toObject(profile.gaze))
 
-  const validation = computeValidation(
-    {
-      seed: nextSeed,
-      student: nextStudent,
-      gaze: nextGaze,
-    },
-    accounts
-  )
-
-  if (section === 'seed' && !validation.stepValidation.connect.isValid) {
-    return res.status(409).json({ error: 'Complete connect step before saving Seed.' })
-  }
-
-  if (section === 'student' && (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid)) {
-    return res.status(409).json({ error: 'Complete Seed before saving Student.' })
-  }
-
-  if (
-    section === 'gaze' &&
-    (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid || !validation.stepValidation.student.isValid)
-  ) {
-    return res.status(409).json({ error: 'Complete Student before saving Gaze.' })
-  }
-
-  const profileStepIdx = stepToIndex(normalizeStep(profile.currentStep))
-  const requestedStepIdx = stepToIndex(section as OnboardingStepKey)
-  const safeStep = STEP_ORDER[Math.min(Math.max(profileStepIdx, requestedStepIdx), validation.maxAllowedStep)]
-
-  const updatedProfile = await prisma.onboardingProfile.update({
-    where: { userId },
-    data: {
-      flowVersion: 2,
-      currentStep: safeStep,
-      seed: asJsonValue(nextSeed),
-      student: asJsonValue(nextStudent),
-      gaze: asJsonValue(nextGaze),
-    },
-  })
-
-  const settings = await loadUserSettings(userId)
-
-  return res.json({
-    ok: true,
-    state: buildStateResponse({
-      profile: {
-        flowVersion: updatedProfile.flowVersion,
-        currentStep: normalizeStep(updatedProfile.currentStep),
-        connectState: toObject(updatedProfile.connectState),
-        seed: toObject(updatedProfile.seed),
-        student: toObject(updatedProfile.student),
-        gaze: toObject(updatedProfile.gaze),
-        kaizenExperiment: toObject(updatedProfile.kaizenExperiment),
-        synthesisStatus: updatedProfile.synthesisStatus,
-        completedAt: updatedProfile.completedAt,
+    const validation = computeValidation(
+      {
+        seed: nextSeed,
+        student: nextStudent,
+        gaze: nextGaze,
       },
-      accounts,
-      legacyCompletedAt: getLegacyCompletedAt(settings),
-    }),
-  })
+      accounts
+    )
+
+    if (section === 'seed' && !validation.stepValidation.connect.isValid) {
+      return res.status(409).json({ error: 'Complete connect step before saving Seed.' })
+    }
+
+    if (section === 'student' && (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid)) {
+      return res.status(409).json({ error: 'Complete Seed before saving Student.' })
+    }
+
+    if (
+      section === 'gaze' &&
+      (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid || !validation.stepValidation.student.isValid)
+    ) {
+      return res.status(409).json({ error: 'Complete Student before saving Gaze.' })
+    }
+
+    const profileStepIdx = stepToIndex(normalizeStep(profile.currentStep))
+    const requestedStepIdx = stepToIndex(section as OnboardingStepKey)
+    const safeStep = STEP_ORDER[Math.min(Math.max(profileStepIdx, requestedStepIdx), validation.maxAllowedStep)]
+
+    const updatedProfile = await prisma.onboardingProfile.update({
+      where: { userId },
+      data: {
+        flowVersion: 2,
+        currentStep: safeStep,
+        seed: asJsonValue(nextSeed),
+        student: asJsonValue(nextStudent),
+        gaze: asJsonValue(nextGaze),
+      },
+    })
+
+    const settings = await loadUserSettings(userId)
+
+    return res.json({
+      ok: true,
+      state: buildStateResponse({
+        profile: {
+          flowVersion: updatedProfile.flowVersion,
+          currentStep: normalizeStep(updatedProfile.currentStep),
+          connectState: toObject(updatedProfile.connectState),
+          seed: toObject(updatedProfile.seed),
+          student: toObject(updatedProfile.student),
+          gaze: toObject(updatedProfile.gaze),
+          kaizenExperiment: toObject(updatedProfile.kaizenExperiment),
+          synthesisStatus: updatedProfile.synthesisStatus,
+          completedAt: updatedProfile.completedAt,
+        },
+        accounts,
+        legacyCompletedAt: getLegacyCompletedAt(settings),
+      }),
+    })
+  } catch {
+    return res.status(500).json({ error: 'Failed to save onboarding identity' })
+  }
 })
 
 // POST /api/onboarding/connect/start
@@ -748,37 +760,41 @@ router.post('/connect/start', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' })
   }
 
-  const provider = valueAsString(req.body?.provider || 'n2f').toLowerCase()
-  if (!isValidProvider(provider)) {
-    return res.status(400).json({ error: 'Unsupported provider. Use google or n2f.' })
+  try {
+    const provider = valueAsString(req.body?.provider || 'n2f').toLowerCase()
+    if (!isValidProvider(provider)) {
+      return res.status(400).json({ error: 'Unsupported provider. Use google or n2f.' })
+    }
+
+    await ensureProfileForWrite(userId)
+
+    const fallbackUsed = provider === 'n2f'
+    const resolvedProvider: SupportedProvider = fallbackUsed ? 'google' : provider
+    const startUrl = '/api/calendar/google/authorize?redirect=/onboarding'
+
+    await prisma.onboardingProfile.update({
+      where: { userId },
+      data: {
+        connectState: asJsonValue({
+          provider,
+          resolvedProvider,
+          fallbackProvider: 'google',
+          fallbackUsed,
+          lastStartAt: new Date().toISOString(),
+        }),
+      },
+    })
+
+    return res.json({
+      provider,
+      resolvedProvider,
+      fallbackProvider: 'google',
+      fallbackUsed,
+      startUrl,
+    })
+  } catch {
+    return res.status(500).json({ error: 'Failed to start onboarding connection' })
   }
-
-  await ensureProfileForWrite(userId)
-
-  const fallbackUsed = provider === 'n2f'
-  const resolvedProvider: SupportedProvider = fallbackUsed ? 'google' : provider
-  const startUrl = '/api/calendar/google/authorize?redirect=/onboarding'
-
-  await prisma.onboardingProfile.update({
-    where: { userId },
-    data: {
-      connectState: asJsonValue({
-        provider,
-        resolvedProvider,
-        fallbackProvider: 'google',
-        fallbackUsed,
-        lastStartAt: new Date().toISOString(),
-      }),
-    },
-  })
-
-  return res.json({
-    provider,
-    resolvedProvider,
-    fallbackProvider: 'google',
-    fallbackUsed,
-    startUrl,
-  })
 })
 
 // GET /api/onboarding/connect/status
@@ -788,34 +804,38 @@ router.get('/connect/status', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' })
   }
 
-  const [profile, accounts] = await Promise.all([
-    prisma.onboardingProfile.findUnique({ where: { userId } }),
-    getConnectedAccounts(userId),
-  ])
+  try {
+    const [profile, accounts] = await Promise.all([
+      prisma.onboardingProfile.findUnique({ where: { userId } }),
+      getConnectedAccounts(userId),
+    ])
 
-  const connected = accounts.length > 0
-  const connectState = {
-    ...toObject(profile?.connectState),
-    connected,
-    connectedAccountIds: accounts.map((account) => account.id),
-    connectedAccounts: accounts,
-    lastCheckedAt: new Date().toISOString(),
-  }
+    const connected = accounts.length > 0
+    const connectState = {
+      ...toObject(profile?.connectState),
+      connected,
+      connectedAccountIds: accounts.map((account) => account.id),
+      connectedAccounts: accounts,
+      lastCheckedAt: new Date().toISOString(),
+    }
 
-  if (profile) {
-    await prisma.onboardingProfile.update({
-      where: { userId },
-      data: { connectState: asJsonValue(connectState) },
+    if (profile) {
+      await prisma.onboardingProfile.update({
+        where: { userId },
+        data: { connectState: asJsonValue(connectState) },
+      })
+    }
+
+    return res.json({
+      connected,
+      connectState,
+      accounts,
+      providers: SUPPORTED_PROVIDERS,
+      fallbackProvider: 'google',
     })
+  } catch {
+    return res.status(500).json({ error: 'Failed to load onboarding connection status' })
   }
-
-  return res.json({
-    connected,
-    connectState,
-    accounts,
-    providers: SUPPORTED_PROVIDERS,
-    fallbackProvider: 'google',
-  })
 })
 
 // POST /api/onboarding/synthesize-experiment
@@ -825,92 +845,101 @@ router.post('/synthesize-experiment', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' })
   }
 
-  const [profile, accounts] = await Promise.all([
-    ensureProfileForWrite(userId),
-    getConnectedAccounts(userId),
-  ])
-
-  const seed = sanitizeSeed(toObject(profile.seed))
-  const student = sanitizeStudent(toObject(profile.student))
-  const gaze = sanitizeGaze(toObject(profile.gaze))
-
-  const validation = computeValidation({ seed, student, gaze }, accounts)
-
-  const qualityErrors = {
-    connect: validation.stepValidation.connect.errors,
-    seed: validation.stepValidation.seed.errors,
-    student: validation.stepValidation.student.errors,
-    gaze: validation.stepValidation.gaze.errors,
-  }
-
-  const hasQualityErrors = Object.values(qualityErrors).some((errors) => errors.length > 0)
-  if (hasQualityErrors) {
-    return res.status(422).json({
-      error: 'Quality gates failed for synthesis.',
-      stepValidation: validation.stepValidation,
-    })
-  }
-
-  const calendarSummary = await buildCalendarSynthesisSummary(userId)
-
-  const connectState = {
-    ...toObject(profile.connectState),
-    connected: accounts.length > 0,
-    connectedAccountIds: accounts.map((account) => account.id),
-    connectedAccounts: accounts,
-  }
-
   try {
-    const prompt = buildExperimentPrompt({
-      seed,
-      student,
-      gaze,
-      connectState,
-      calendarSummary,
-    })
+    const [profile, accounts] = await Promise.all([
+      ensureProfileForWrite(userId),
+      getConnectedAccounts(userId),
+    ])
 
-    const rawResponse = await callGemini(prompt)
-    const parsed = JSON.parse(extractJsonFromText(rawResponse))
-    const experiment = normalizeExperimentPayload(toObject(parsed))
+    const seed = sanitizeSeed(toObject(profile.seed))
+    const student = sanitizeStudent(toObject(profile.student))
+    const gaze = sanitizeGaze(toObject(profile.gaze))
 
-    const generatedAt = new Date().toISOString()
-    const qualityFlags = {
-      seedNarrativeLength: valueAsString(seed.narrative).length,
-      studentNarrativeLength: valueAsString(student.narrative).length,
-      gazeDesiresLength: valueAsString(gaze.desires).length,
-      gazeReflectionLength: valueAsString(gaze.reflection).length,
+    const validation = computeValidation({ seed, student, gaze }, accounts)
+
+    const qualityErrors = {
+      connect: validation.stepValidation.connect.errors,
+      seed: validation.stepValidation.seed.errors,
+      student: validation.stepValidation.student.errors,
+      gaze: validation.stepValidation.gaze.errors,
     }
 
-    const payload = {
-      experiment,
-      metadata: {
-        model: 'gemini-3-flash-preview',
-        generatedAt,
-        qualityFlags,
+    const hasQualityErrors = Object.values(qualityErrors).some((errors) => errors.length > 0)
+    if (hasQualityErrors) {
+      return res.status(422).json({
+        error: 'Quality gates failed for synthesis.',
+        stepValidation: validation.stepValidation,
+      })
+    }
+
+    const calendarSummary = await buildCalendarSynthesisSummary(userId)
+
+    const connectState = {
+      ...toObject(profile.connectState),
+      connected: accounts.length > 0,
+      connectedAccountIds: accounts.map((account) => account.id),
+      connectedAccounts: accounts,
+    }
+
+    try {
+      const prompt = buildExperimentPrompt({
+        seed,
+        student,
+        gaze,
+        connectState,
         calendarSummary,
-      },
+      })
+
+      const rawResponse = await callGemini(prompt)
+      const parsed = JSON.parse(extractJsonFromText(rawResponse))
+      const experiment = normalizeExperimentPayload(toObject(parsed))
+
+      const generatedAt = new Date().toISOString()
+      const qualityFlags = {
+        seedNarrativeLength: valueAsString(seed.narrative).length,
+        studentNarrativeLength: valueAsString(student.narrative).length,
+        gazeDesiresLength: valueAsString(gaze.desires).length,
+        gazeReflectionLength: valueAsString(gaze.reflection).length,
+      }
+
+      const payload = {
+        experiment,
+        metadata: {
+          model: 'gemini-3-flash-preview',
+          generatedAt,
+          qualityFlags,
+          calendarSummary,
+        },
+      }
+
+      const updatedProfile = await prisma.onboardingProfile.update({
+        where: { userId },
+        data: {
+          kaizenExperiment: asJsonValue(payload),
+          synthesisStatus: 'ready',
+        },
+      })
+
+      return res.json({
+        synthesisStatus: updatedProfile.synthesisStatus,
+        kaizenExperiment: payload,
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to synthesize experiment'
+
+      await prisma.onboardingProfile.update({
+        where: { userId },
+        data: { synthesisStatus: 'failed' },
+      })
+
+      if (message.includes('not configured')) {
+        return res.status(503).json({ error: message })
+      }
+
+      return res.status(500).json({ error: 'Failed to synthesize experiment' })
     }
-
-    const updatedProfile = await prisma.onboardingProfile.update({
-      where: { userId },
-      data: {
-        kaizenExperiment: asJsonValue(payload),
-        synthesisStatus: 'ready',
-      },
-    })
-
-    return res.json({
-      synthesisStatus: updatedProfile.synthesisStatus,
-      kaizenExperiment: payload,
-    })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to synthesize experiment'
-
-    await prisma.onboardingProfile.update({
-      where: { userId },
-      data: { synthesisStatus: 'failed' },
-    })
-
     if (message.includes('not configured')) {
       return res.status(503).json({ error: message })
     }
@@ -926,47 +955,51 @@ router.post('/complete', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Authentication required' })
   }
 
-  const [profile, accounts] = await Promise.all([
-    ensureProfileForWrite(userId),
-    getConnectedAccounts(userId),
-  ])
+  try {
+    const [profile, accounts] = await Promise.all([
+      ensureProfileForWrite(userId),
+      getConnectedAccounts(userId),
+    ])
 
-  const seed = sanitizeSeed(toObject(profile.seed))
-  const student = sanitizeStudent(toObject(profile.student))
-  const gaze = sanitizeGaze(toObject(profile.gaze))
+    const seed = sanitizeSeed(toObject(profile.seed))
+    const student = sanitizeStudent(toObject(profile.student))
+    const gaze = sanitizeGaze(toObject(profile.gaze))
 
-  const validation = computeValidation({ seed, student, gaze }, accounts)
+    const validation = computeValidation({ seed, student, gaze }, accounts)
 
-  const hasQualityErrors = Object.values(validation.stepValidation).some((step) => !step.isValid)
-  if (hasQualityErrors) {
-    return res.status(422).json({
-      error: 'Cannot complete onboarding until all steps are valid.',
-      stepValidation: validation.stepValidation,
+    const hasQualityErrors = Object.values(validation.stepValidation).some((step) => !step.isValid)
+    if (hasQualityErrors) {
+      return res.status(422).json({
+        error: 'Cannot complete onboarding until all steps are valid.',
+        stepValidation: validation.stepValidation,
+      })
+    }
+
+    if (isEmptyRecord(profile.kaizenExperiment)) {
+      return res.status(422).json({
+        error: 'Generate your Kaizen Experiment before completing onboarding.',
+      })
+    }
+
+    const completedAt = new Date().toISOString()
+
+    await Promise.all([
+      prisma.onboardingProfile.update({
+        where: { userId },
+        data: {
+          completedAt: new Date(completedAt),
+          currentStep: 'gaze',
+        },
+      }),
+      updateLegacyCompletion(userId, completedAt),
+    ])
+
+    return res.json({
+      completedAt,
     })
+  } catch {
+    return res.status(500).json({ error: 'Failed to complete onboarding' })
   }
-
-  if (isEmptyRecord(profile.kaizenExperiment)) {
-    return res.status(422).json({
-      error: 'Generate your Kaizen Experiment before completing onboarding.',
-    })
-  }
-
-  const completedAt = new Date().toISOString()
-
-  await Promise.all([
-    prisma.onboardingProfile.update({
-      where: { userId },
-      data: {
-        completedAt: new Date(completedAt),
-        currentStep: 'gaze',
-      },
-    }),
-    updateLegacyCompletion(userId, completedAt),
-  ])
-
-  return res.json({
-    completedAt,
-  })
 })
 
 // ============================================

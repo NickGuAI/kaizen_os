@@ -154,6 +154,15 @@ describe('Onboarding API routes', () => {
     expect(response.body.stepValidation.connect.errors[0]).toContain('Connect at least one account')
   })
 
+  it('GET /state returns 500 when state loading fails', async () => {
+    prismaMock.onboardingProfile.findUnique.mockRejectedValueOnce(new Error('database unavailable'))
+
+    const response = await request(app).get('/api/onboarding/state')
+
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Failed to load onboarding state')
+  })
+
   it('PUT /state rejects Seed save before connect is complete', async () => {
     const response = await request(app)
       .put('/api/onboarding/state')
@@ -243,6 +252,28 @@ describe('Onboarding API routes', () => {
 
     expect(response.status).toBe(400)
     expect(response.body.error).toContain('Invalid section')
+  })
+
+  it('PUT /identity returns 500 when identity persistence fails', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+    prismaMock.onboardingProfile.update.mockRejectedValueOnce(new Error('write failed'))
+
+    const response = await request(app)
+      .put('/api/onboarding/identity')
+      .send({
+        section: 'seed',
+        data: validSeed,
+      })
+
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Failed to save onboarding identity')
   })
 
   it('POST /connect/start supports n2f contract with google fallback', async () => {
@@ -380,5 +411,31 @@ describe('Onboarding API routes', () => {
 
     const onboardingProgress = (memory.settings.onboarding_progress || {}) as Record<string, unknown>
     expect(typeof onboardingProgress.completedAt).toBe('string')
+  })
+
+  it('POST /complete returns 500 when completion persistence fails', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+
+    memory.profile = buildProfile({
+      currentStep: 'gaze',
+      seed: validSeed,
+      student: validStudent,
+      gaze: validGaze,
+      kaizenExperiment: { experiment: { title: 'Focus Sprint' } },
+      synthesisStatus: 'ready',
+    })
+    prismaMock.user.update.mockRejectedValueOnce(new Error('write failed'))
+
+    const response = await request(app).post('/api/onboarding/complete')
+
+    expect(response.status).toBe(500)
+    expect(response.body.error).toBe('Failed to complete onboarding')
   })
 })
