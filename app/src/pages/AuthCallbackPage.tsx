@@ -66,7 +66,7 @@ export default function AuthCallbackPage() {
       if (exchangeData?.session) {
         await autoConnectCalendar(exchangeData.session)
       }
-      navigate('/', { replace: true })
+      navigate('/planner', { replace: true })
     }
 
     void completeLogin()
