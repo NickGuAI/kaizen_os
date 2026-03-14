@@ -1,5 +1,6 @@
 import { Routes, Route, useSearchParams, Navigate } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
+import PublicLandingPage from './pages/PublicLandingPage'
 import WhereAmIPage from './pages/WhereAmIPage'
 import SeasonsPage from './pages/SeasonsPage'
 import ThemeViewPage from './pages/ThemeViewPage'
@@ -16,6 +17,7 @@ import LoginPage from './pages/LoginPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import OnboardingPage from './pages/OnboardingPage'
 import ProtectedRoute from './components/ProtectedRoute'
+import { useAuth } from './lib/authContext'
 
 function CreateDirector() {
   const [searchParams] = useSearchParams()
@@ -26,16 +28,31 @@ function CreateDirector() {
   return <CardEditPage />
 }
 
+function RootRoute() {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return <div className="app" style={{ padding: 24 }}>Loading...</div>
+  }
+
+  if (user) {
+    return <Navigate to="/app" replace />
+  }
+
+  return <PublicLandingPage />
+}
+
 function App() {
   return (
     <div className="app">
       <Routes>
+        <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/themes" element={<Navigate to="/" replace />} />
+          <Route path="/app" element={<LandingPage />} />
+          <Route path="/themes" element={<Navigate to="/app" replace />} />
           <Route path="/themes-overview" element={<Navigate to="/where-am-i" replace />} />
           <Route path="/where-am-i" element={<WhereAmIPage />} />
           <Route path="/seasons" element={<SeasonsPage />} />
