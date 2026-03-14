@@ -278,6 +278,16 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
 
   return (
     <div className="daily-dashboard">
+      <div className="daily-gcal-bar">
+        <a
+          href="https://calendar.google.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="gcal-goto-btn"
+        >
+          Go To Calendar
+        </a>
+      </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="daily-plan-layout">
           {/* Left Column (desktop): Parking Lot */}

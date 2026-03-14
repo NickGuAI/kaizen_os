@@ -65,6 +65,7 @@ function useNavItems(): CardNavItem[] {
           { label: 'Planner', path: '/planner' },
           { label: 'Chat', path: '/chat' },
           { label: 'Review', path: '/review' },
+          { label: 'Plan', path: '/planner?mode=plan' },
         ],
       },
       {

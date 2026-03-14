@@ -590,6 +590,16 @@ export function CalendarPanel({
   return (
     <div className="right-panel">
       <div className="calendar-card">
+        <div className="week-gcal-bar">
+          <a
+            href="https://calendar.google.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gcal-goto-btn"
+          >
+            Go To Calendar
+          </a>
+        </div>
         {/* Plan Mode Legend - Show even when themes bar is hidden */}
         {showPlanModeLegend && planMode && (
           <div className="plan-mode-legend-bar">

@@ -52,92 +52,6 @@
   transition: color 0.15s ease;
 }
 
-/* Header Actions */
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.header-action-btn {
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.header-action-btn.tag {
-  background: #EA580C;
-  color: white;
-  border: none;
-}
-
-.header-action-btn.tag:hover {
-  background: #C2410C;
-}
-
-.header-action-btn.sync {
-  background: transparent;
-  color: #666;
-  border: 1px solid rgba(139, 148, 103, 0.2);
-}
-
-.header-action-btn.sync:hover {
-  background: rgba(139, 148, 103, 0.05);
-  border-color: rgba(139, 148, 103, 0.3);
-}
-
-.header-action-btn.sync:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.header-action-btn.review {
-  background: transparent;
-  color: #666;
-  border: 1px solid rgba(139, 148, 103, 0.2);
-}
-
-.header-action-btn.review:hover {
-  background: rgba(139, 148, 103, 0.05);
-  border-color: rgba(139, 148, 103, 0.3);
-}
-
-.header-action-btn.plan {
-  background: #1A1A1A;
-  color: white;
-  border: none;
-}
-
-.header-action-btn.plan:hover {
-  background: #333;
-}
-
-.header-action-btn.plan.submitted {
-  background: rgba(0, 0, 0, 0.06);
-  color: #aaa;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  cursor: default;
-}
-
-.header-action-btn.plan.submitted:hover {
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.header-action-btn.exit {
-  background: rgba(220, 38, 38, 0.1);
-  color: #DC2626;
-  border: none;
-}
-
-.header-action-btn.exit:hover {
-  background: rgba(220, 38, 38, 0.2);
-}
 
 /* ==================== DATE NAV HEADER ==================== */
 .date-nav-header {
@@ -184,16 +98,18 @@
 
 .view-toggle-pills {
   display: flex;
-  gap: 4px;
+  gap: 0;
+  border: 1px solid rgba(139, 148, 103, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .view-pill {
-  padding: 8px 14px;
+  padding: 6px 14px;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border: none;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
   color: #999;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -201,28 +117,36 @@
 
 .view-pill:hover {
   color: #666;
+  background: rgba(139, 148, 103, 0.05);
 }
 
 .view-pill.active {
-  background: white;
-  border-color: rgba(139, 148, 103, 0.2);
+  background: rgba(139, 148, 103, 0.15);
   font-weight: 600;
   color: #1A1A1A;
 }
 
-.gcal-link-btn {
-  margin-left: 8px;
-  padding: 8px 14px;
+/* ==================== GO TO CALENDAR BUTTON ==================== */
+.daily-gcal-bar,
+.week-gcal-bar {
+  padding: 8px 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.gcal-goto-btn {
+  padding: 6px 14px;
   background: transparent;
   border: 1px solid rgba(139, 148, 103, 0.2);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
   color: #666;
   text-decoration: none;
   transition: all 0.15s ease;
 }
 
-.gcal-link-btn:hover {
+.gcal-goto-btn:hover {
   background: white;
   border-color: rgba(139, 148, 103, 0.3);
   color: #1A1A1A;
@@ -576,10 +500,6 @@
 
   .main-header {
     display: none; /* Hide main header on mobile */
-  }
-
-  .view-pill.week-pill {
-    display: none; /* Hide Week toggle on mobile */
   }
 
   .mobile-nav {

@@ -1,6 +1,6 @@
 // Landing Page - v4 redesign matching kaizen-v2 mock with sidebar layout
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useThemes, useActiveActions } from '../hooks/useCards'
 import { useUserSettings } from '../hooks/useUserSettings'
@@ -112,8 +112,7 @@ export default function LandingPage() {
   const [debugCommitPlan, setDebugCommitPlan] = useState<any>(null)
 
   // Calendar sync state
-  const [repairing, setRepairing] = useState(false)
-  const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus | null>(null)
+  const [, setSyncStatus] = useState<CalendarSyncStatus | null>(null)
 
 
   // Action type navigation state
@@ -989,40 +988,6 @@ export default function LandingPage() {
     setLoading(false)
   }, [actionStates, gcalAssignments, actions, weekStart])
 
-  const handleRepairSync = useCallback(async () => {
-    setRepairing(true)
-    try {
-      await apiFetch('/api/calendar/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ weekStart }),
-      })
-      // Invalidate cache to trigger refetch
-      queryClient.invalidateQueries({ queryKey: ['calendarEvents', weekStart] })
-      loadSyncStatus()
-    } catch (error) {
-      console.error('Failed to repair sync:', error)
-    }
-    setRepairing(false)
-  }, [weekStart, queryClient, loadSyncStatus])
-
-  const syncStatusLabel = useMemo(() => {
-    if (!syncStatus) return 'Auto-sync: waiting for status'
-    if (syncStatus.totalSubscriptions === 0) return 'Auto-sync: no channels'
-
-    const lastUpdated = syncStatus.lastUpdatedAt
-      ? format(new Date(syncStatus.lastUpdatedAt), 'MMM d, h:mm a')
-      : 'never'
-    const health =
-      syncStatus.staleSubscriptions > 0
-        ? `${syncStatus.healthySubscriptions}/${syncStatus.totalSubscriptions} live`
-        : 'live'
-
-    return `Auto-sync: ${health} · Last ${lastUpdated}`
-  }, [syncStatus])
-
   const enterPlanMode = useCallback(() => {
     setShowPlanRestrictionPopup(false)
     setTagMode(false)
@@ -1221,23 +1186,22 @@ export default function LandingPage() {
     setViewMode(mode)
   }, [])
 
+  // Trigger plan mode from URL param (?mode=plan)
+  const [searchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('mode') === 'plan' && !planningMode) {
+      handlePlanModeToggle(true)
+    }
+  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <AppLayout onThemeClick={(id) => navigate('/theme/' + id)}>
 
-        {/* Date Navigation Header (with merged action buttons) */}
         <DateNavHeader
           viewMode={viewMode}
           currentDate={currentDate}
           onViewModeChange={handleViewModeChange}
           onDateChange={handleDateChange}
-          planMode={planningMode}
-          tagMode={tagMode}
-          onPlanModeToggle={handlePlanModeToggle}
-          onTagModeToggle={handleTagModeToggle}
-          onRepairSync={handleRepairSync}
-          repairing={repairing}
-          syncStatusLabel={syncStatusLabel}
-          isPlanSubmitted={sessionStatus === 'committed'}
         />
 
         {/* Content Area */}
