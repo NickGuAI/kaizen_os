@@ -1,4 +1,3 @@
-export { Sidebar } from './Sidebar'
 export { MainHeader } from './MainHeader'
 export { DateNavHeader } from './DateNavHeader'
 export { MobileNav } from './MobileNav'

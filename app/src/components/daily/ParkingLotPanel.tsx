@@ -1,15 +1,78 @@
 // Parking Lot Panel - Ad-hoc items with no planned date, shown across all days
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import type { WorkItemWithOverlays } from './DailyDashboard'
+
+export const PARKING_DROP_ZONE_ID = 'parking-drop-zone'
 
 export interface ParkingLotPanelProps {
   items: WorkItemWithOverlays[]
   currentDate: string // YYYY-MM-DD — used for "Pull to today" label
   onComplete: (workItemKey: string) => void
   onPullToDate: (workItemKey: string) => void
-  onParkFromDate?: (workItemKey: string) => void
   onCreateItem: (title: string) => Promise<void>
   loading?: boolean
+}
+
+interface ParkingDraggableItemProps {
+  item: WorkItemWithOverlays
+  currentDate: string
+  pullLabel: string
+  onComplete: (workItemKey: string) => void
+  onPullToDate: (workItemKey: string) => void
+}
+
+function ParkingDraggableItem({
+  item,
+  currentDate,
+  pullLabel,
+  onComplete,
+  onPullToDate,
+}: ParkingDraggableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `parking:${item.key}`,
+    data: {
+      source: 'parking',
+      type: 'parking-item',
+      workItemKey: item.key,
+    },
+  })
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`parking-item ${isDragging ? 'dragging' : ''}`}
+      {...attributes}
+      {...listeners}
+    >
+      <span className="parking-drag-handle" title="Drag to playlist">&#x2630;</span>
+      <div
+        className="playlist-checkbox"
+        onClick={() => onComplete(item.key)}
+      />
+      <div className="parking-item-content">
+        <div className="parking-item-title">{item.title}</div>
+        {item.linkedCardTitle && (
+          <div className="parking-item-card">{item.linkedCardTitle}</div>
+        )}
+      </div>
+      <button
+        className="pull-to-date-btn"
+        onClick={() => onPullToDate(item.key)}
+        title={pullLabel}
+      >
+        ↓ {currentDate === today ? 'Today' : currentDate}
+      </button>
+    </div>
+  )
 }
 
 export function ParkingLotPanel({
@@ -17,52 +80,15 @@ export function ParkingLotPanel({
   currentDate,
   onComplete,
   onPullToDate,
-  onParkFromDate,
   onCreateItem,
   loading,
 }: ParkingLotPanelProps) {
   const [quickAddValue, setQuickAddValue] = useState('')
   const [isCreating, setIsCreating] = useState(false)
-  const [draggingKey, setDraggingKey] = useState<string | null>(null)
-  const [isSnackDragOver, setIsSnackDragOver] = useState(false)
-
-  const handleDragStart = useCallback((e: React.DragEvent, key: string) => {
-    setDraggingKey(key)
-    e.dataTransfer.effectAllowed = 'move'
-    // Use a distinct MIME type so AmmoPanel can tell this apart from internal reorders
-    e.dataTransfer.setData('application/kaizen-parking', key)
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '0.45'
-    }
-  }, [])
-
-  const handleDragEnd = useCallback((e: React.DragEvent) => {
-    setDraggingKey(null)
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '1'
-    }
-  }, [])
-
-  const handlePanelDragOver = useCallback((e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes('application/kaizen-snack')) return
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setIsSnackDragOver(true)
-  }, [])
-
-  const handlePanelDragLeave = useCallback((e: React.DragEvent) => {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsSnackDragOver(false)
-    }
-  }, [])
-
-  const handlePanelDrop = useCallback((e: React.DragEvent) => {
-    const key = e.dataTransfer.getData('application/kaizen-snack')
-    if (!key || !onParkFromDate) return
-    e.preventDefault()
-    setIsSnackDragOver(false)
-    onParkFromDate(key)
-  }, [onParkFromDate])
+  const { setNodeRef, isOver } = useDroppable({
+    id: PARKING_DROP_ZONE_ID,
+    data: { type: 'parking-zone' },
+  })
 
   const activeItems = items.filter(item => item.status !== 'done')
   const doneItems = items.filter(item => item.status === 'done')
@@ -87,12 +113,7 @@ export function ParkingLotPanel({
 
   return (
     <div className="parking-lot-panel">
-      <div
-        className={`panel-card ${isSnackDragOver ? 'snack-drop-target' : ''}`}
-        onDragOver={handlePanelDragOver}
-        onDragLeave={handlePanelDragLeave}
-        onDrop={handlePanelDrop}
-      >
+      <div ref={setNodeRef} className={`panel-card ${isOver ? 'snack-drop-target' : ''}`}>
         <div className="panel-header">
           <span className="panel-title">Parking Lot</span>
           <span className="panel-badge">{activeItems.length} items</span>
@@ -106,32 +127,14 @@ export function ParkingLotPanel({
           )}
 
           {!loading && activeItems.map(item => (
-            <div
+            <ParkingDraggableItem
               key={item.key}
-              className={`parking-item ${draggingKey === item.key ? 'dragging' : ''}`}
-              draggable
-              onDragStart={(e) => handleDragStart(e, item.key)}
-              onDragEnd={handleDragEnd}
-            >
-              <span className="parking-drag-handle" title="Drag to playlist">&#x2630;</span>
-              <div
-                className="playlist-checkbox"
-                onClick={() => onComplete(item.key)}
-              />
-              <div className="parking-item-content">
-                <div className="parking-item-title">{item.title}</div>
-                {item.linkedCardTitle && (
-                  <div className="parking-item-card">{item.linkedCardTitle}</div>
-                )}
-              </div>
-              <button
-                className="pull-to-date-btn"
-                onClick={() => onPullToDate(item.key)}
-                title={pullLabel}
-              >
-                ↓ {currentDate === today ? 'Today' : currentDate}
-              </button>
-            </div>
+              item={item}
+              currentDate={currentDate}
+              pullLabel={pullLabel}
+              onComplete={onComplete}
+              onPullToDate={onPullToDate}
+            />
           ))}
 
           {!loading && doneItems.length > 0 && (

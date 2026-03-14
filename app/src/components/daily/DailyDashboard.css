@@ -13,6 +13,7 @@
   --color-text-muted: #999999;
   --color-success: #4CAF50;
   --color-warning: #FF9800;
+  --color-gold: #D4AF37;
   --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
   /* Theme colors */
@@ -433,6 +434,7 @@
   background: var(--color-bg);
   border: 1px solid transparent;
   transition: border-color 0.15s;
+  cursor: grab;
 }
 
 .parking-item:hover {
@@ -441,6 +443,7 @@
 
 .parking-item.completed {
   opacity: 0.45;
+  cursor: default;
 }
 
 .parking-item-content {
@@ -932,6 +935,7 @@
 
 .parking-item.dragging {
   opacity: 0.45;
+  cursor: grabbing;
 }
 
 /* Inline triage selector */
@@ -1284,6 +1288,7 @@
   gap: 8px;
   padding: 6px 0;
   transition: background-color 0.15s ease, opacity 0.15s ease;
+  cursor: grab;
 }
 
 .snack-title,
@@ -1303,6 +1308,10 @@
   color: #999;
 }
 
+.snack-item.completed {
+  cursor: default;
+}
+
 .snack-item.snack-top3 {
   border-left: 3px solid #D8A11E;
   background: linear-gradient(90deg, rgba(216, 161, 30, 0.18), rgba(216, 161, 30, 0));
@@ -1310,8 +1319,14 @@
   padding: 7px 8px 7px 6px;
 }
 
+.priority-highlight {
+  border-left: 3px solid var(--color-gold, #D4AF37) !important;
+  background: rgba(212, 175, 55, 0.08) !important;
+}
+
 .snack-item.dragging {
   opacity: 0.45;
+  cursor: grabbing;
 }
 
 .snack-add-row {
@@ -1481,6 +1496,10 @@
   background: rgba(139, 148, 103, 0.22);
   border-left-color: #5a7a3a;
   font-weight: 600;
+}
+
+.hour-event.priority-highlight {
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35);
 }
 
 .hour-event-title {

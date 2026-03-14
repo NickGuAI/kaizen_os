@@ -4,7 +4,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Card from 'react-bootstrap/Card'
 import Nav from 'react-bootstrap/Nav'
 import { useThemes } from '../../hooks/useCards'
+import { useActiveSeason } from '../../hooks/useSeasons'
 import { AgentChat } from '../AgentChat'
+import { MobileNav } from './MobileNav'
 import './Layout.css'
 
 interface AppLayoutProps {
@@ -20,13 +22,13 @@ interface NavLinkItem {
 }
 
 const SERVICE_LINKS: NavLinkItem[] = [
-  { key: 'service-chat', label: 'Agent Chat', path: '/' },
-  { key: 'service-planner', label: 'Planner', path: '/planner' },
+  { key: 'service-home', label: 'Home', path: '/planner' },
+  { key: 'service-chat', label: 'Chat', path: '/' },
   { key: 'service-review', label: 'Review', path: '/review' },
 ]
 
 const SCENE_LINKS: NavLinkItem[] = [
-  { key: 'scene-where', label: 'Where Am I', path: '/where-am-i' },
+  { key: 'scene-themes', label: 'Themes', path: '/where-am-i' },
   { key: 'scene-seasons', label: 'Seasons', path: '/seasons' },
   { key: 'scene-settings', label: 'Settings', path: '/settings' },
 ]
@@ -41,6 +43,7 @@ export function AppLayout({ children, onThemeClick, showAgentChatWidget = true }
   const location = useLocation()
 
   const { data: themes } = useThemes()
+  const { data: activeSeason } = useActiveSeason()
   const activeServicePath = getActivePath(location.pathname, SERVICE_LINKS)
   const activeScenePath = getActivePath(location.pathname, SCENE_LINKS)
 
@@ -49,8 +52,30 @@ export function AppLayout({ children, onThemeClick, showAgentChatWidget = true }
     return match ? match[1] : undefined
   }, [location.pathname])
 
+  const seasonBadge = useMemo(() => {
+    if (!activeSeason) return null
+
+    const startDate = new Date(activeSeason.startDate)
+    const now = new Date()
+    const elapsedDays = Math.max(
+      0,
+      Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)),
+    )
+    const durationWeeks = Math.max(activeSeason.durationWeeks || 1, 1)
+    const week = Math.min(durationWeeks, Math.floor(elapsedDays / 7) + 1)
+    const progress = Math.round((week / durationWeeks) * 100)
+
+    return {
+      name: activeSeason.name,
+      week,
+      durationWeeks,
+      progress: Math.max(0, Math.min(progress, 100)),
+    }
+  }, [activeSeason])
+
   return (
     <div className="kaizen-layout">
+      <MobileNav />
       <header className="kaizen-card-nav-shell">
         <div className="kaizen-card-nav-brand">
           <span className="kaizen-card-nav-logo">K</span>
@@ -58,6 +83,17 @@ export function AppLayout({ children, onThemeClick, showAgentChatWidget = true }
             <h1>Kaizen OS</h1>
             <p>Chat-first command center</p>
           </div>
+          {seasonBadge && (
+            <div className="kaizen-season-pill" title={seasonBadge.name}>
+              <span className="kaizen-season-pill-name">{seasonBadge.name}</span>
+              <span className="kaizen-season-pill-meta">
+                Week {seasonBadge.week}/{seasonBadge.durationWeeks}
+              </span>
+              <div className="kaizen-season-pill-bar">
+                <span style={{ width: `${seasonBadge.progress}%` }} />
+              </div>
+            </div>
+          )}
         </div>
         <div className="kaizen-card-nav-grid">
           <Card className="kaizen-nav-card">
