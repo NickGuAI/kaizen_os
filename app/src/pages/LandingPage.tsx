@@ -1186,11 +1186,14 @@ export default function LandingPage() {
     setViewMode(mode)
   }, [])
 
-  // Trigger plan mode from URL param (?mode=plan)
+  // Sync plan mode with URL param (?mode=plan)
   const [searchParams] = useSearchParams()
   useEffect(() => {
-    if (searchParams.get('mode') === 'plan' && !planningMode) {
+    const wantsPlan = searchParams.get('mode') === 'plan'
+    if (wantsPlan && !planningMode) {
       handlePlanModeToggle(true)
+    } else if (!wantsPlan && planningMode) {
+      handlePlanModeToggle(false)
     }
   }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
 

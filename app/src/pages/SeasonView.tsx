@@ -149,13 +149,15 @@ export default function SeasonView() {
               color: 'var(--color-text-muted)', fontSize: '14px',
             }}
           >
-            ← Back
+            {'← Back'}
           </button>
           <div>
-            <h1 className="text-lg font-semibold">{isCreateMode ? 'New Season' : (season?.name || 'Season')}</h1>
+            <h1 className="text-lg font-semibold">
+              {isCreateMode ? 'New Season' : (season?.name || 'Season')}
+            </h1>
             {!isCreateMode && (
               <p className="text-sm text-secondary">
-                {startDate && `${new Date(startDate).toLocaleDateString()}`} • Week {weekProgress} of {durationWeeks}
+                {startDate && `${new Date(startDate).toLocaleDateString()}`} {'•'} Week {weekProgress} of {durationWeeks}
               </p>
             )}
           </div>

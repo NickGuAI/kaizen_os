@@ -39,16 +39,16 @@ export default function PublicLandingPage() {
         {!prefersReducedMotion && (
           <LightRays
             raysOrigin="top-center"
-            raysColor="#8B9467"
-            raysSpeed={0.4}
-            lightSpread={1.5}
-            rayLength={2.5}
+            raysColor="#a8b880"
+            raysSpeed={0.5}
+            lightSpread={2.0}
+            rayLength={3.0}
             pulsating
-            fadeDistance={1.2}
-            saturation={0.7}
+            fadeDistance={1.6}
+            saturation={0.85}
             followMouse
-            mouseInfluence={0.08}
-            noiseAmount={0.05}
+            mouseInfluence={0.1}
+            noiseAmount={0.03}
             distortion={0}
           />
         )}

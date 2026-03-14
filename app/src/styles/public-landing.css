@@ -16,7 +16,17 @@
   background:
     radial-gradient(circle at 18% 14%, rgba(139, 148, 103, 0.2), transparent 46%),
     radial-gradient(circle at 84% 16%, rgba(157, 165, 117, 0.18), transparent 42%),
-    linear-gradient(150deg, #0a0f0a 0%, #0d120d 60%, #0f1510 100%);
+    linear-gradient(150deg, rgba(10, 15, 10, 0.55) 0%, rgba(13, 18, 13, 0.65) 60%, rgba(15, 21, 16, 0.7) 100%);
+  background-color: #0a0f0a;
+}
+
+.public-landing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/assets/kaizen_background.png') center/cover no-repeat;
+  opacity: 0.55;
+  z-index: 0;
 }
 
 .public-landing__rays,
@@ -26,20 +36,20 @@
 }
 
 .public-landing__rays {
-  z-index: 0;
-  opacity: 0.95;
+  z-index: 1;
+  opacity: 1;
 }
 
 .public-landing__overlay {
-  z-index: 1;
+  z-index: 2;
   background:
-    radial-gradient(circle at 50% 36%, rgba(245, 241, 235, 0.08), transparent 58%),
-    linear-gradient(180deg, rgba(10, 15, 10, 0.18) 0%, rgba(10, 15, 10, 0.66) 100%);
+    radial-gradient(circle at 50% 36%, rgba(245, 241, 235, 0.1), transparent 58%),
+    linear-gradient(180deg, rgba(10, 15, 10, 0.1) 0%, rgba(10, 15, 10, 0.45) 100%);
 }
 
 .public-landing__hero {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   width: min(760px, 100%);
   text-align: center;
   color: var(--landing-ink);

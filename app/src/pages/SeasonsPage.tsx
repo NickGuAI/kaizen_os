@@ -1,4 +1,4 @@
-// Seasons Page - Zen UI styled active bets, scoring panel, and analysis
+// Seasons Page - Active bets, scoring panel, and analysis
 import { useNavigate } from 'react-router-dom'
 import { useThemes, useActiveActions, useGlobalVetoes } from '../hooks/useCards'
 import type { Card } from '../lib/api'
@@ -78,6 +78,8 @@ export default function SeasonsPage() {
   return (
     <AppLayout>
       <div style={{ padding: 'var(--space-6)', maxWidth: '1200px', margin: '0 auto', overflowY: 'auto', flex: 1 }}>
+        <h1 className="text-2xl font-semibold" style={{ marginBottom: 'var(--space-6)' }}>Seasons</h1>
+
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
           {/* Left Column: Active Bets by Theme */}
           <div>
@@ -89,11 +91,7 @@ export default function SeasonsPage() {
                 const condition = conditions[theme.id]?.conditionScore ?? 0
 
                 return (
-                  <div key={theme.id} style={{
-                    background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--color-sage-border-light)',
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)', overflow: 'hidden',
-                  }}>
+                  <div key={theme.id} className="card-static" style={{ overflow: 'hidden', padding: 0 }}>
                     <button
                       onClick={() => toggleTheme(theme.id)}
                       style={{
@@ -103,13 +101,8 @@ export default function SeasonsPage() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                        <span style={{ fontSize: '20px' }}>🎯</span>
                         <span className="font-medium">{theme.title}</span>
-                        <span style={{
-                          padding: '2px 8px', fontSize: '11px', fontWeight: 600,
-                          background: 'rgba(107, 127, 215, 0.1)', color: '#6B7FD7',
-                          borderRadius: '10px',
-                        }}>{themeActions.length} actions</span>
+                        <span className="badge badge-sage">{themeActions.length} actions</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                         <div style={{ width: '60px', height: '6px', background: 'var(--color-sage-border-light)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -144,7 +137,7 @@ export default function SeasonsPage() {
                               <span style={{
                                 padding: '4px 10px', fontSize: '11px', fontWeight: 600,
                                 background: statusStyle.bg, color: statusStyle.color,
-                                borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.05em',
+                                borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.05em',
                               }}>{action.status.replace('_', ' ')}</span>
                             </div>
                           )
@@ -165,12 +158,8 @@ export default function SeasonsPage() {
           {/* Right Column: Scoring & Analysis */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
             {/* Scoring Panel */}
-            <div style={{
-              background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--color-sage-border-light)',
-              padding: 'var(--space-5)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            }}>
-              <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>📈 Condition Scores</h3>
+            <div className="card-static">
+              <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>Condition Scores</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 {themes?.map(theme => {
                   const condition = conditions[theme.id]?.conditionScore ?? 0
@@ -188,20 +177,16 @@ export default function SeasonsPage() {
             </div>
 
             {/* Analysis Panel */}
-            <div style={{
-              background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--color-sage-border-light)',
-              padding: 'var(--space-5)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            }}>
-              <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>📊 Analysis</h3>
+            <div className="card-static">
+              <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>Analysis</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="text-sm text-secondary">Total Active Actions</span>
-                  <span className="font-semibold" style={{ color: '#6B7FD7' }}>{activeActions?.length ?? 0}</span>
+                  <span className="font-semibold" style={{ color: 'var(--color-sage)' }}>{activeActions?.length ?? 0}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="text-sm text-secondary">Themes with Actions</span>
-                  <span className="font-semibold" style={{ color: '#9B59B6' }}>{Object.keys(actionsByTheme).length}</span>
+                  <span className="font-semibold" style={{ color: 'var(--color-sage)' }}>{Object.keys(actionsByTheme).length}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="text-sm text-secondary">Guardrails Active</span>
@@ -218,18 +203,14 @@ export default function SeasonsPage() {
 
             {/* Season Progress */}
             {season && (
-              <div style={{
-                background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--color-sage-border-light)',
-                padding: 'var(--space-5)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-              }}>
-                <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>🗓️ Season Progress</h3>
+              <div className="card-static">
+                <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>Season Progress</h3>
                 <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
-                  <div className="text-2xl font-bold" style={{ color: '#9B59B6' }}>{seasonProgress}%</div>
+                  <div className="text-2xl font-bold" style={{ color: 'var(--color-sage)' }}>{seasonProgress}%</div>
                   <div className="text-xs text-muted" style={{ marginTop: '2px' }}>{season.name}</div>
                 </div>
                 <div style={{ height: '8px', background: 'var(--color-sage-border-light)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${seasonProgress}%`, background: 'linear-gradient(90deg, #9B59B6, #8E44AD)', transition: 'width 0.5s ease' }} />
+                  <div style={{ height: '100%', width: `${seasonProgress}%`, background: 'linear-gradient(90deg, var(--color-sage), #7a8359)', transition: 'width 0.5s ease' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)' }}>
                   <span className="text-xs text-muted">{new Date(season.startDate).toLocaleDateString()}</span>
