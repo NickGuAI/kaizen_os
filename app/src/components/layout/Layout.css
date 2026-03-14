@@ -126,32 +126,6 @@
   color: #1A1A1A;
 }
 
-/* ==================== GO TO CALENDAR BUTTON ==================== */
-.daily-gcal-bar,
-.week-gcal-bar {
-  padding: 8px 16px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.gcal-goto-btn {
-  padding: 6px 14px;
-  background: transparent;
-  border: 1px solid rgba(139, 148, 103, 0.2);
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #666;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.gcal-goto-btn:hover {
-  background: white;
-  border-color: rgba(139, 148, 103, 0.3);
-  color: #1A1A1A;
-}
-
 /* ==================== LAYOUT WRAPPER ==================== */
 .kaizen-card-nav-shell {
   border-bottom: 1px solid rgba(139, 148, 103, 0.12);

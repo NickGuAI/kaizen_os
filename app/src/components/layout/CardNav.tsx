@@ -1,5 +1,5 @@
 // CardNav - Sumi-e styled collapsible card navigation
-// Collapsed bar with logo + hamburger; expands to reveal nav cards on click
+// Collapsed bar with logo + hamburger + "Chat With Sensei" button; expands to reveal nav cards
 import { useLayoutEffect, useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { gsap } from 'gsap'
@@ -26,8 +26,8 @@ interface CardNavProps {
 
 const ArrowIcon = () => (
   <svg
-    width="14"
-    height="14"
+    width="13"
+    height="13"
     viewBox="0 0 24 24"
     fill="none"
     stroke="currentColor"
@@ -48,7 +48,7 @@ function useNavItems(): CardNavItem[] {
   return useMemo(() => {
     const themeLinks: CardNavLink[] =
       themes && themes.length > 0
-        ? themes.slice(0, 4).map((t) => ({ label: t.title, path: `/theme/${t.id}` }))
+        ? themes.map((t) => ({ label: t.title, path: `/theme/${t.id}` }))
         : [{ label: 'Themes overview', path: '/where-am-i' }]
 
     const seasonLinks: CardNavLink[] = [{ label: 'All seasons', path: '/seasons' }]
@@ -63,7 +63,6 @@ function useNavItems(): CardNavItem[] {
         textColor: '#F5F1EB',
         links: [
           { label: 'Planner', path: '/planner' },
-          { label: 'Chat', path: '/chat' },
           { label: 'Review', path: '/review' },
           { label: 'Plan', path: '/planner?mode=plan' },
         ],
@@ -87,6 +86,7 @@ function useNavItems(): CardNavItem[] {
         links: [
           { label: 'Preferences', path: '/settings' },
           { label: 'Rules', path: '/settings/rules' },
+          { label: 'Google Calendar', path: 'https://calendar.google.com' },
         ],
       },
     ]
@@ -107,30 +107,27 @@ export function CardNav({ variant = 'light', className = '' }: CardNavProps) {
 
   const calculateHeight = useCallback(() => {
     const navEl = navRef.current
-    if (!navEl) return 260
+    if (!navEl) return 280
 
-    const isMobile = window.matchMedia('(max-width: 768px)').matches
-    if (isMobile) {
-      const contentEl = navEl.querySelector('.cardnav-content') as HTMLElement
-      if (contentEl) {
-        const prevVis = contentEl.style.visibility
-        const prevPE = contentEl.style.pointerEvents
-        const prevPos = contentEl.style.position
-        const prevH = contentEl.style.height
-        contentEl.style.visibility = 'visible'
-        contentEl.style.pointerEvents = 'auto'
-        contentEl.style.position = 'static'
-        contentEl.style.height = 'auto'
-        contentEl.offsetHeight // force reflow
-        const h = BAR_HEIGHT + contentEl.scrollHeight + 16
-        contentEl.style.visibility = prevVis
-        contentEl.style.pointerEvents = prevPE
-        contentEl.style.position = prevPos
-        contentEl.style.height = prevH
-        return h
-      }
+    const contentEl = navEl.querySelector('.cardnav-content') as HTMLElement
+    if (contentEl) {
+      const prevVis = contentEl.style.visibility
+      const prevPE = contentEl.style.pointerEvents
+      const prevPos = contentEl.style.position
+      const prevH = contentEl.style.height
+      contentEl.style.visibility = 'visible'
+      contentEl.style.pointerEvents = 'auto'
+      contentEl.style.position = 'static'
+      contentEl.style.height = 'auto'
+      contentEl.offsetHeight // force reflow
+      const h = BAR_HEIGHT + contentEl.scrollHeight + 16
+      contentEl.style.visibility = prevVis
+      contentEl.style.pointerEvents = prevPE
+      contentEl.style.position = prevPos
+      contentEl.style.height = prevH
+      return h
     }
-    return 260
+    return 280
   }, [])
 
   const createTimeline = useCallback(() => {
@@ -203,7 +200,11 @@ export function CardNav({ variant = 'light', className = '' }: CardNavProps) {
   }
 
   const handleNav = (path: string) => {
-    navigate(path)
+    if (path.startsWith('http')) {
+      window.open(path, '_blank', 'noopener,noreferrer')
+    } else {
+      navigate(path)
+    }
   }
 
   const setCardRef = (i: number) => (el: HTMLDivElement | null) => {
@@ -237,6 +238,13 @@ export function CardNav({ variant = 'light', className = '' }: CardNavProps) {
             <span className="cardnav-logo-mark">K</span>
             <span className="cardnav-logo-text">Kaizen OS</span>
           </div>
+
+          <button
+            className="cardnav-sensei-btn"
+            onClick={() => navigate('/chat')}
+          >
+            Chat With Sensei
+          </button>
         </div>
 
         {/* Card grid */}

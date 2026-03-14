@@ -145,6 +145,37 @@
   letter-spacing: 0.02em;
 }
 
+/* ---- Chat With Sensei button ---- */
+.cardnav-sensei-btn {
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 148, 103, 0.3);
+  background: rgba(139, 148, 103, 0.12);
+  color: #4b4d3f;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.cardnav-sensei-btn:hover {
+  background: rgba(139, 148, 103, 0.22);
+  border-color: rgba(139, 148, 103, 0.5);
+}
+
+.cardnav--dark .cardnav-sensei-btn {
+  background: rgba(139, 148, 103, 0.2);
+  border-color: rgba(139, 148, 103, 0.4);
+  color: #F5F1EB;
+}
+
+.cardnav--dark .cardnav-sensei-btn:hover {
+  background: rgba(139, 148, 103, 0.35);
+}
+
 /* ---- Card content area ---- */
 .cardnav-content {
   position: absolute;
@@ -181,32 +212,40 @@
 
 .cardnav-card-label {
   font-family: 'Cormorant Garamond', 'Palatino Linotype', serif;
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  opacity: 0.92;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-bottom: 2px;
 }
 
 .cardnav-card-links {
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .cardnav-card-link {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: none;
   border: none;
   padding: 2px 0;
   cursor: pointer;
   font-size: 13px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  opacity: 0.78;
+  opacity: 0.82;
   transition: opacity 0.2s ease;
   text-align: left;
+}
+
+.cardnav-card-link svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
 }
 
 .cardnav-card-link:hover {
