@@ -1,3 +1,6 @@
+-- IMPORTANT: Replace <CALENDAR_POLL_SECRET> with actual value before running.
+--            Do NOT commit this file with the real secret filled in.
+
 ALTER TABLE calendar_workspace_subscriptions
   ADD COLUMN IF NOT EXISTS channel_id VARCHAR(255),
   ADD COLUMN IF NOT EXISTS resource_id TEXT,
@@ -33,10 +36,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url     => 'https://kaizen.gehirn.ai/api/calendar/poll',
-    headers => jsonb_build_object(
-      'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.calendar_poll_secret')
-    ),
+    headers => '{"Content-Type": "application/json", "Authorization": "Bearer <CALENDAR_POLL_SECRET>"}'::jsonb,
     body    => '{}'::jsonb
   );
   $$
@@ -52,10 +52,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url     => 'https://kaizen.gehirn.ai/api/calendar/watch/renew',
-    headers => jsonb_build_object(
-      'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.calendar_poll_secret')
-    ),
+    headers => '{"Content-Type": "application/json", "Authorization": "Bearer <CALENDAR_POLL_SECRET>"}'::jsonb,
     body    => '{}'::jsonb
   );
   $$
