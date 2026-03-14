@@ -2,7 +2,26 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/authContext'
 import { supabase } from '../lib/supabaseClient'
+import { apiFetch } from '../lib/apiFetch'
 import '../styles/public-landing.css'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function autoConnectCalendar(session: any) {
+  const providerToken = session.provider_token
+  const providerRefreshToken = session.provider_refresh_token
+  const email = session.user?.email
+  if (!providerToken || !email) return
+  try {
+    await apiFetch('/api/auth/auto-connect-calendar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerToken, providerRefreshToken, email }),
+    })
+  } catch {
+    // Non-critical — user can still connect manually later
+    console.warn('[auth] Auto-connect calendar failed silently')
+  }
+}
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate()
@@ -30,11 +49,12 @@ export default function AuthCallbackPage() {
         return
       }
 
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+      const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
       if (exchangeError) {
         const { data: sessionData } = await supabase.auth.getSession()
         if (sessionData.session) {
           await refresh()
+          await autoConnectCalendar(sessionData.session)
           navigate('/', { replace: true })
           return
         }
@@ -43,6 +63,9 @@ export default function AuthCallbackPage() {
       }
 
       await refresh()
+      if (exchangeData?.session) {
+        await autoConnectCalendar(exchangeData.session)
+      }
       navigate('/', { replace: true })
     }
 
