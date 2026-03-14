@@ -64,9 +64,9 @@
 
 .public-landing__shape-blur {
   position: absolute;
-  inset: -20px;
+  inset: 0;
   z-index: 0;
-  opacity: 0.5;
+  opacity: 0.6;
   pointer-events: none;
 }
 
