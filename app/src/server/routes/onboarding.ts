@@ -656,6 +656,91 @@ router.put('/state', async (req: Request, res: Response) => {
   )
 })
 
+// PUT /api/onboarding/identity
+router.put('/identity', async (req: Request, res: Response) => {
+  const userId = req.user?.id
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' })
+  }
+
+  const payload = toObject(req.body)
+  const section = valueAsString(payload.section).toLowerCase()
+  const sectionData = toObject(payload.data)
+
+  if (!['seed', 'student', 'gaze'].includes(section)) {
+    return res.status(400).json({ error: 'Invalid section. Use seed, student, or gaze.' })
+  }
+
+  const [profile, accounts] = await Promise.all([
+    ensureProfileForWrite(userId),
+    getConnectedAccounts(userId),
+  ])
+
+  const nextSeed = section === 'seed' ? sanitizeSeed(sectionData) : sanitizeSeed(toObject(profile.seed))
+  const nextStudent = section === 'student' ? sanitizeStudent(sectionData) : sanitizeStudent(toObject(profile.student))
+  const nextGaze = section === 'gaze' ? sanitizeGaze(sectionData) : sanitizeGaze(toObject(profile.gaze))
+
+  const validation = computeValidation(
+    {
+      seed: nextSeed,
+      student: nextStudent,
+      gaze: nextGaze,
+    },
+    accounts
+  )
+
+  if (section === 'seed' && !validation.stepValidation.connect.isValid) {
+    return res.status(409).json({ error: 'Complete connect step before saving Seed.' })
+  }
+
+  if (section === 'student' && (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid)) {
+    return res.status(409).json({ error: 'Complete Seed before saving Student.' })
+  }
+
+  if (
+    section === 'gaze' &&
+    (!validation.stepValidation.connect.isValid || !validation.stepValidation.seed.isValid || !validation.stepValidation.student.isValid)
+  ) {
+    return res.status(409).json({ error: 'Complete Student before saving Gaze.' })
+  }
+
+  const profileStepIdx = stepToIndex(normalizeStep(profile.currentStep))
+  const requestedStepIdx = stepToIndex(section as OnboardingStepKey)
+  const safeStep = STEP_ORDER[Math.min(Math.max(profileStepIdx, requestedStepIdx), validation.maxAllowedStep)]
+
+  const updatedProfile = await prisma.onboardingProfile.update({
+    where: { userId },
+    data: {
+      flowVersion: 2,
+      currentStep: safeStep,
+      seed: asJsonValue(nextSeed),
+      student: asJsonValue(nextStudent),
+      gaze: asJsonValue(nextGaze),
+    },
+  })
+
+  const settings = await loadUserSettings(userId)
+
+  return res.json({
+    ok: true,
+    state: buildStateResponse({
+      profile: {
+        flowVersion: updatedProfile.flowVersion,
+        currentStep: normalizeStep(updatedProfile.currentStep),
+        connectState: toObject(updatedProfile.connectState),
+        seed: toObject(updatedProfile.seed),
+        student: toObject(updatedProfile.student),
+        gaze: toObject(updatedProfile.gaze),
+        kaizenExperiment: toObject(updatedProfile.kaizenExperiment),
+        synthesisStatus: updatedProfile.synthesisStatus,
+        completedAt: updatedProfile.completedAt,
+      },
+      accounts,
+      legacyCompletedAt: getLegacyCompletedAt(settings),
+    }),
+  })
+})
+
 // POST /api/onboarding/connect/start
 router.post('/connect/start', async (req: Request, res: Response) => {
   const userId = req.user?.id

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Input, Select, Textarea } from '../ui'
-import { ReactBitsStepper, StepperStep } from './ReactBitsStepper'
+import { Stepper, StepperStep } from '../ui/Stepper'
 import { useOnboarding } from './hooks/useOnboarding'
 import { ConnectStep } from './steps'
 
@@ -272,7 +272,7 @@ export function OnboardingWizard() {
         </div>
       ) : null}
 
-      <ReactBitsStepper
+      <Stepper
         steps={steps}
         currentStep={state.data.currentStep}
         onStepChange={async (step) => {

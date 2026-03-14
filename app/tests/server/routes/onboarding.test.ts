@@ -210,6 +210,41 @@ describe('Onboarding API routes', () => {
     expect(response.body.error).toContain('Complete Seed')
   })
 
+  it('PUT /identity persists section payload and returns state envelope', async () => {
+    memory.accounts = [
+      {
+        id: 'acct-1',
+        provider: 'google',
+        email: 'person@example.com',
+        createdAt: new Date('2026-03-14T00:00:00.000Z'),
+      },
+    ]
+
+    const response = await request(app)
+      .put('/api/onboarding/identity')
+      .send({
+        section: 'seed',
+        data: validSeed,
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.ok).toBe(true)
+    expect(response.body.state.seed.coreIdentity).toBe(validSeed.coreIdentity)
+    expect(response.body.state.currentStepKey).toBe('seed')
+  })
+
+  it('PUT /identity rejects invalid section values', async () => {
+    const response = await request(app)
+      .put('/api/onboarding/identity')
+      .send({
+        section: 'unknown',
+        data: {},
+      })
+
+    expect(response.status).toBe(400)
+    expect(response.body.error).toContain('Invalid section')
+  })
+
   it('POST /connect/start supports n2f contract with google fallback', async () => {
     const response = await request(app)
       .post('/api/onboarding/connect/start')
