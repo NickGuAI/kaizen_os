@@ -55,7 +55,7 @@ export default function AuthCallbackPage() {
         if (sessionData.session) {
           await refresh()
           await autoConnectCalendar(sessionData.session)
-          navigate('/', { replace: true })
+          navigate('/planner', { replace: true })
           return
         }
         setError(exchangeError.message)
