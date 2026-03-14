@@ -4,6 +4,7 @@ import { useSeason } from '../hooks/useSeasons'
 import { useActiveActions } from '../hooks/useCards'
 import { api, Card } from '../lib/api'
 import { getSeasonReviewAvailability, MID_SEASON_REVIEW_UNLOCK_PERCENT } from '../utils/seasonReviewUtils'
+import { AppLayout } from '../components/layout'
 
 type GradingType = 'mid_season' | 'end_season'
 type CriterionGrade = { criterion: string; passed: boolean | null }
@@ -154,15 +155,17 @@ export default function SeasonGradingPage() {
 
   if (!season) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F5F1EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: '#999' }}>Loading...</div>
-      </div>
+      <AppLayout>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#999' }}>Loading...</div>
+        </div>
+      </AppLayout>
     )
   }
 
   if (!activeGradingType) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F5F1EB', padding: 32 }}>
+      <AppLayout><div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <button onClick={() => navigate(`/seasons/${seasonId}`)} className="back-button" style={{
             display: 'flex', alignItems: 'center', gap: 8, background: 'white',
@@ -195,13 +198,13 @@ export default function SeasonGradingPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div></AppLayout>
     )
   }
 
   if (gradableActions.length === 0) {
     return (
-      <div style={{ minHeight: '100vh', background: '#F5F1EB', padding: 32 }}>
+      <AppLayout><div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <button onClick={() => navigate(-1)} className="back-button" style={{
             display: 'flex', alignItems: 'center', gap: 8, background: 'white',
@@ -214,7 +217,7 @@ export default function SeasonGradingPage() {
             <p style={{ color: '#666' }}>No actions with criteria to grade.</p>
           </div>
         </div>
-      </div>
+      </div></AppLayout>
     )
   }
 
@@ -231,7 +234,7 @@ export default function SeasonGradingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F5F1EB', padding: 32 }}>
+    <AppLayout><div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
@@ -581,6 +584,6 @@ export default function SeasonGradingPage() {
           </div>
         </div>
       )}
-    </div>
+    </div></AppLayout>
   )
 }

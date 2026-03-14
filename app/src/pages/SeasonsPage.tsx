@@ -5,6 +5,7 @@ import type { Card } from '../lib/api'
 import { useActiveSeason } from '../hooks/useSeasons'
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import { AppLayout } from '../components/layout'
 
 interface ConditionData {
   conditionScore: number
@@ -75,32 +76,8 @@ export default function SeasonsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      {/* Header */}
-      <header style={{
-        padding: 'var(--space-4) var(--space-6)',
-        borderBottom: '1px solid var(--color-sage-border-light)',
-        background: 'var(--color-card)',
-        display: 'flex', alignItems: 'center', gap: 'var(--space-4)',
-      }}>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--color-text-muted)', fontSize: '14px',
-            display: 'flex', alignItems: 'center', gap: 'var(--space-1)',
-          }}
-        >
-          ← Home
-        </button>
-        <h1 className="text-lg font-semibold" style={{ color: 'var(--color-sage)' }}>📊 Seasons</h1>
-        <div style={{ flex: 1 }} />
-        {season && (
-          <span className="text-sm text-secondary">{season.name} • {seasonProgress}% complete</span>
-        )}
-      </header>
-
-      <main className="container" style={{ padding: 'var(--space-6)', maxWidth: '1200px', margin: '0 auto' }}>
+    <AppLayout>
+      <div style={{ padding: 'var(--space-6)', maxWidth: '1200px', margin: '0 auto', overflowY: 'auto', flex: 1 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
           {/* Left Column: Active Bets by Theme */}
           <div>
@@ -262,7 +239,7 @@ export default function SeasonsPage() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   )
 }

@@ -37,11 +37,7 @@ function RootRoute() {
   }
 
   if (user) {
-    return (
-      <AppLayout showAgentChatWidget={false}>
-        <AgentChatPage />
-      </AppLayout>
-    )
+    return <Navigate to="/planner" replace />
   }
 
   return <PublicLandingPage />
@@ -64,7 +60,7 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/chat" element={<Navigate to="/" replace />} />
+          <Route path="/chat" element={<AgentChatScene />} />
           <Route path="/chat/:sessionId" element={<AgentChatScene />} />
           <Route path="/app" element={<Navigate to="/planner" replace />} />
           <Route path="/planner" element={<LandingPage />} />

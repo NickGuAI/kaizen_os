@@ -5,6 +5,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useCard, useUpdateCard, useDeleteCard, useCreateCard } from '../hooks/useCards'
 import { Button, Card, Input, Textarea, Select } from '../components/ui'
+import { AppLayout } from '../components/layout'
 import { UnitType } from '../lib/api'
 import { formatDateForInput } from '../utils/dateUtils'
 
@@ -126,9 +127,11 @@ export default function CardEditPage() {
 
   if (isLoading) {
     return (
-      <div className="container" style={{ padding: 'var(--space-8) var(--space-6)' }}>
-        <p className="text-muted">Loading...</p>
-      </div>
+      <AppLayout>
+        <div className="container" style={{ padding: 'var(--space-8) var(--space-6)' }}>
+          <p className="text-muted">Loading...</p>
+        </div>
+      </AppLayout>
     )
   }
 
@@ -148,8 +151,8 @@ export default function CardEditPage() {
   const pageTitle = isCreateMode ? `Create ${typeLabel}` : `Edit ${typeLabel}`
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
-      {/* Header */}
+    <AppLayout>
+      <div style={{ overflowY: 'auto', flex: 1 }}>
       <header
         style={{
           padding: 'var(--space-6)',
@@ -288,6 +291,7 @@ export default function CardEditPage() {
           </form>
         </Card>
       </main>
-    </div>
+      </div>
+    </AppLayout>
   )
 }

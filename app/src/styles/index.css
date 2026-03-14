@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
-/* Kaizen OS - Zen UI Design System  */
+/* Kaizen OS - Sumi-e UI Design System
+   Inspired by Japanese ink wash painting:
+   - Parchment backgrounds (washi paper)
+   - Ink-wash blacks and grays
+   - Sage green accents (matcha)
+   - Serif headlines (calligraphic feel)
+   - Generous negative space (ma)
+   - Soft, organic shadows
+*/
 
 :root {
   --color-sage: #8B9467;
@@ -15,10 +23,20 @@
   --color-text-muted: #999999;
   --color-border: rgba(139, 148, 103, 0.2);
   --color-hover: rgba(139, 148, 103, 0.05);
+
+  /* Sumi-e ink shades */
+  --ink-deep: #2A2A28;
+  --ink-medium: #4A4A46;
+  --ink-light: #7A7A72;
+  --ink-wash: rgba(42, 42, 40, 0.06);
+
+  /* Typography */
+  --font-serif: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
   color: var(--color-text-primary);

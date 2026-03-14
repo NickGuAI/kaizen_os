@@ -344,13 +344,13 @@ router.post('/sunset/execute', async (req: Request, res) => {
         eventType: 'workitem_attributed',
         payload: {
           operation: 'sunset_command',
-          command,
-          response: responseData,
+          command: JSON.parse(JSON.stringify(command)),
+          response: responseData ? JSON.parse(JSON.stringify(responseData)) : undefined,
           undoSupported,
           agentSessionId: agentSession.id,
           checkpointUuid: receiptId,
           executedAt,
-        },
+        } as unknown as Record<string, string>,
       },
     })
 

@@ -3,7 +3,7 @@
 
 # Configuration
 APP_DIR := app
-RELEASE_REPO ?= git@github-release:nickguyai/gehirn-kaizen-os-release.git
+RELEASE_REPO ?= https://github.com/NickGuAI/kaizen_os.git
 RELEASE_BRANCH := main
 
 .PHONY: help install dev build test lint check clean release-init release

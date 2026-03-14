@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Select } from '../components/ui';
 import { apiFetch } from '../lib/apiFetch';
+import { AppLayout } from '../components/layout';
 
 interface ClassificationRule {
   id: string;
@@ -177,14 +178,16 @@ export default function ClassificationRulesPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--color-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p>Loading...</p>
-      </div>
+      <AppLayout>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p>Loading...</p>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-bg)' }}>
+    <AppLayout><div style={{ flex: 1, overflowY: 'auto' }}>
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button
@@ -425,6 +428,6 @@ export default function ClassificationRulesPage() {
           )}
         </Card>
       </main>
-    </div>
+    </div></AppLayout>
   );
 }

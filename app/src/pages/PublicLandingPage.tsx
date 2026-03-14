@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { CardNav } from '../components/layout/CardNav'
 import LightRays from '../components/reactbits/LightRays'
 import ShinyText from '../components/reactbits/ShinyText'
 import '../styles/public-landing.css'
@@ -32,6 +33,8 @@ export default function PublicLandingPage() {
 
   return (
     <main className="public-landing">
+      <CardNav variant="dark" />
+
       <div className="public-landing__rays" aria-hidden="true">
         {!prefersReducedMotion && (
           <LightRays
