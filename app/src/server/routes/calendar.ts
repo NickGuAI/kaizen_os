@@ -595,9 +595,10 @@ router.get('/google/authorize', (req: Request, res: Response) => {
   // Only allow valid same-origin paths, default to /settings
   const redirectUrl = isValidRedirectPath(redirectParam) ? redirectParam : undefined;
 
-  // Encode userId and optional redirect URL in state
-  const stateData = { userId, redirect: redirectUrl };
-  const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString('base64');
+  // Keep legacy state=userId when no redirect is requested so existing clients/tests stay compatible.
+  const stateEncoded = redirectUrl
+    ? Buffer.from(JSON.stringify({ userId, redirect: redirectUrl })).toString('base64')
+    : userId;
 
   const oauth2Client = getOAuth2Client();
   const url = oauth2Client.generateAuthUrl({
