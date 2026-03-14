@@ -92,8 +92,8 @@ export default function SettingsPage() {
 
   return (
     <AppLayout>
-      <div style={{ padding: 16 }}>
-        <main className="container" style={{ padding: 'var(--space-8) var(--space-6)' }}>
+      <div style={{ padding: 16, width: '100%', minWidth: 0 }}>
+        <main style={{ padding: 'var(--space-8) var(--space-6)', width: '100%' }}>
         <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 24 }}>Settings</h1>
         {/* Regular Settings Grid */}
         <div className="settings-grid">

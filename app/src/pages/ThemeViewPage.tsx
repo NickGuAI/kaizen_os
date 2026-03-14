@@ -109,7 +109,7 @@ export default function ThemeViewPage() {
 
   return (
     <AppLayout>
-      <div style={{ padding: '48px 32px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '48px 32px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           {/* Page Header */}
         <div style={{ marginBottom: 48 }}>
