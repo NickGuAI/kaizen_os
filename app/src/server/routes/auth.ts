@@ -3,7 +3,7 @@ import { getAuthProvider } from '../../auth'
 import { requireAuthV2 } from '../middleware/authProvider'
 import { clearSessionCookie } from '../middleware/auth'
 import { encryptToken } from '../../lib/crypto'
-import { prisma } from '../../lib/prismaClient'
+import { prisma } from '../../lib/db'
 import { google } from 'googleapis'
 
 const router = Router()
