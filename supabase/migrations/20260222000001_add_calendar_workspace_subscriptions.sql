@@ -6,12 +6,22 @@ CREATE TABLE calendar_workspace_subscriptions (
   subscription_name TEXT NOT NULL UNIQUE,
   expiration        TIMESTAMPTZ NOT NULL,
   state             VARCHAR(20) NOT NULL DEFAULT 'active',
+  resource_id       TEXT,
+  sync_token        TEXT,
+  channel_token     TEXT,
+  channel_address   TEXT,
+  last_notification_at TIMESTAMPTZ,
+  last_synced_at    TIMESTAMPTZ,
+  last_message_number BIGINT,
+  last_error        TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (account_id, calendar_id)
 );
 
 CREATE INDEX idx_cal_ws_sub_expiration ON calendar_workspace_subscriptions (expiration);
+CREATE INDEX idx_cal_ws_sub_state_expiration ON calendar_workspace_subscriptions (state, expiration);
+CREATE INDEX idx_cal_ws_sub_last_notification ON calendar_workspace_subscriptions (last_notification_at);
 CREATE INDEX idx_cal_ws_sub_user ON calendar_workspace_subscriptions (user_id);
 
 ALTER TABLE calendar_workspace_subscriptions ENABLE ROW LEVEL SECURITY;

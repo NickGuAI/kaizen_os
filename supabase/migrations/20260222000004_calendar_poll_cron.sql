@@ -2,7 +2,8 @@
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Schedule calendar poll every 5 minutes via pg_cron + pg_net
+-- Schedule fallback repair poll every 5 minutes via pg_cron + pg_net.
+-- Primary freshness comes from Google Calendar push notifications.
 -- Requires app.calendar_poll_secret to be set on the database:
 --   ALTER DATABASE postgres SET app.calendar_poll_secret = '<your-secret>';
 SELECT cron.schedule(

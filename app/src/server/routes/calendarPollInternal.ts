@@ -6,7 +6,7 @@ const router = Router();
 /**
  * POST /api/calendar/poll
  *
- * Internal endpoint triggered by Supabase pg_cron every 5 minutes.
+ * Internal fallback endpoint triggered by Supabase pg_cron every 5 minutes.
  * Protected by CALENDAR_POLL_SECRET to prevent unauthorized triggers.
  */
 router.post('/', async (req: Request, res: Response) => {

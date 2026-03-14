@@ -21,6 +21,16 @@ import { ACTION_TYPES, type ActionType } from '../utils/guidedPlanningUtils'
 import { DEFAULT_TAGS } from '../utils/tagConfig'
 import { getWeekdayInTimeZone } from '../utils/dateUtils'
 
+interface CalendarSyncStatus {
+  mode: 'webhook_primary' | 'polling_only'
+  totalSubscriptions: number
+  healthySubscriptions: number
+  staleSubscriptions: number
+  fallbackPollingEnabled: boolean
+  lastUpdatedAt: string | null
+  lastErrors?: string[]
+}
+
 export default function LandingPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -102,7 +112,8 @@ export default function LandingPage() {
   const [debugCommitPlan, setDebugCommitPlan] = useState<any>(null)
 
   // Calendar sync state
-  const [syncing, setSyncing] = useState(false)
+  const [repairing, setRepairing] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<CalendarSyncStatus | null>(null)
 
 
   // Action type navigation state
@@ -257,6 +268,28 @@ export default function LandingPage() {
       console.error('Failed to load planned hours:', error)
     }
   }
+
+  const loadSyncStatus = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/calendar/sync/status')
+      if (res.ok) {
+        const status = await res.json()
+        setSyncStatus(status)
+      }
+    } catch (error) {
+      console.error('Failed to load sync status:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSyncStatus()
+
+    const intervalId = window.setInterval(() => {
+      loadSyncStatus()
+    }, 60 * 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [loadSyncStatus])
 
   // Load tasks for an action
   const loadActionTasks = useCallback(async (actionId: string) => {
@@ -956,8 +989,8 @@ export default function LandingPage() {
     setLoading(false)
   }, [actionStates, gcalAssignments, actions, weekStart])
 
-  const handleSync = useCallback(async () => {
-    setSyncing(true)
+  const handleRepairSync = useCallback(async () => {
+    setRepairing(true)
     try {
       await apiFetch('/api/calendar/sync', {
         method: 'POST',
@@ -968,11 +1001,27 @@ export default function LandingPage() {
       })
       // Invalidate cache to trigger refetch
       queryClient.invalidateQueries({ queryKey: ['calendarEvents', weekStart] })
+      loadSyncStatus()
     } catch (error) {
-      console.error('Failed to sync calendar:', error)
+      console.error('Failed to repair sync:', error)
     }
-    setSyncing(false)
-  }, [weekStart, queryClient])
+    setRepairing(false)
+  }, [weekStart, queryClient, loadSyncStatus])
+
+  const syncStatusLabel = useMemo(() => {
+    if (!syncStatus) return 'Auto-sync: waiting for status'
+    if (syncStatus.totalSubscriptions === 0) return 'Auto-sync: no channels'
+
+    const lastUpdated = syncStatus.lastUpdatedAt
+      ? format(new Date(syncStatus.lastUpdatedAt), 'MMM d, h:mm a')
+      : 'never'
+    const health =
+      syncStatus.staleSubscriptions > 0
+        ? `${syncStatus.healthySubscriptions}/${syncStatus.totalSubscriptions} live`
+        : 'live'
+
+    return `Auto-sync: ${health} · Last ${lastUpdated}`
+  }, [syncStatus])
 
   const enterPlanMode = useCallback(() => {
     setShowPlanRestrictionPopup(false)
@@ -1185,8 +1234,9 @@ export default function LandingPage() {
           tagMode={tagMode}
           onPlanModeToggle={handlePlanModeToggle}
           onTagModeToggle={handleTagModeToggle}
-          onSync={handleSync}
-          syncing={syncing}
+          onRepairSync={handleRepairSync}
+          repairing={repairing}
+          syncStatusLabel={syncStatusLabel}
           isPlanSubmitted={sessionStatus === 'committed'}
         />
 

@@ -577,6 +577,11 @@ model CalendarWorkspaceSubscription {
   resourceId       String?  @map("resource_id") @db.Text
   syncToken        String?  @map("sync_token") @db.Text
   channelToken     String?  @map("channel_token") @db.Text
+  channelAddress   String?  @map("channel_address") @db.Text
+  lastNotificationAt DateTime? @map("last_notification_at")
+  lastSyncedAt     DateTime? @map("last_synced_at")
+  lastMessageNumber BigInt? @map("last_message_number")
+  lastError        String?  @map("last_error") @db.Text
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
@@ -585,6 +590,8 @@ model CalendarWorkspaceSubscription {
 
   @@unique([accountId, calendarId])
   @@index([expiration])
+  @@index([state, expiration])
+  @@index([lastNotificationAt])
   @@index([userId])
   @@map("calendar_workspace_subscriptions")
 }
