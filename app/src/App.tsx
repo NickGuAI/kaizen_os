@@ -16,6 +16,7 @@ import LoginPage from './pages/LoginPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import OnboardingPage from './pages/OnboardingPage'
 import ProtectedRoute from './components/ProtectedRoute'
+import { AppLayout } from './components/layout'
 
 function CreateDirector() {
   const [searchParams] = useSearchParams()
@@ -26,6 +27,14 @@ function CreateDirector() {
   return <CardEditPage />
 }
 
+function AgentChatScene() {
+  return (
+    <AppLayout showAgentChatWidget={false}>
+      <AgentChatPage />
+    </AppLayout>
+  )
+}
+
 function App() {
   return (
     <div className="app">
@@ -34,8 +43,11 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/themes" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<AgentChatScene />} />
+          <Route path="/chat" element={<Navigate to="/" replace />} />
+          <Route path="/chat/:sessionId" element={<AgentChatScene />} />
+          <Route path="/planner" element={<LandingPage />} />
+          <Route path="/themes" element={<Navigate to="/planner" replace />} />
           <Route path="/themes-overview" element={<Navigate to="/where-am-i" replace />} />
           <Route path="/where-am-i" element={<WhereAmIPage />} />
           <Route path="/seasons" element={<SeasonsPage />} />
@@ -52,8 +64,6 @@ function App() {
           <Route path="/theme/:id/actions/:type" element={<ActionTableView />} />
           <Route path="/weekly" element={<Navigate to="/review" replace />} />
           <Route path="/review" element={<ReviewPage />} />
-          <Route path="/chat" element={<AgentChatPage />} />
-          <Route path="/chat/:sessionId" element={<AgentChatPage />} />
         </Route>
       </Routes>
     </div>

@@ -1811,7 +1811,8 @@ body {
 
 .agent-chat-page {
   display: flex;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: var(--color-bg);
 }
 
@@ -1879,6 +1880,7 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
 }
 
 .agent-chat-messages-full {
@@ -2012,6 +2014,37 @@ body {
 .agent-chat-send-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .agent-chat-page {
+    flex-direction: column;
+  }
+
+  .agent-chat-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--color-sage-border-light);
+  }
+
+  .agent-chat-sidebar-actions {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 12px;
+  }
+
+  .agent-sidebar-btn {
+    white-space: nowrap;
+    padding: 10px 12px;
+  }
+
+  .agent-chat-messages-full {
+    padding: 18px 14px;
+  }
+
+  .agent-chat-input-full {
+    padding: 14px;
+  }
 }
 
 /* Markdown Mode Input Styles */

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, FormEvent, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { createTimeline, animate, stagger } from 'animejs'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -7,6 +8,7 @@ import agentIcon from '../assets/agent.png'
 import type { AgentSession, AgentMessage } from '../lib/api'
 import { apiFetch } from '../lib/apiFetch'
 import { getAccessToken } from '../lib/authToken'
+import { formatSunsetResponseMessage, parseSunsetCommand, type SunsetExecuteResponse } from '../lib/sunsetCommands'
 
 const AGENT_API_BASE = '/api/agent'
 
@@ -259,6 +261,7 @@ interface AgentChatProps {
 
 export const AgentChat = ({ className, style }: AgentChatProps = {}) => {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   // Validate persisted state belongs to current user before using
   const validatedState = validateAndGetPersistedState()
   const [isOpen, setIsOpen] = useState(validatedState.isOpen)
@@ -286,7 +289,7 @@ export const AgentChat = ({ className, style }: AgentChatProps = {}) => {
     if (sessionId) {
       navigate(`/chat/${sessionId}`)
     } else {
-      navigate('/chat')
+      navigate('/')
     }
   }
 
@@ -369,6 +372,50 @@ export const AgentChat = ({ className, style }: AgentChatProps = {}) => {
     const userMessage: Message = { role: 'user', content: messageContent }
     setMessages(prev => [...prev, userMessage])
     setInput('')
+    const sunsetCommand = parseSunsetCommand(messageContent)
+
+    if (sunsetCommand) {
+      setIsStreaming(true)
+      try {
+        const response = await apiFetch(`${AGENT_API_BASE}/sunset/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: messageContent, sessionId }),
+        })
+        if (!response.ok) throw new Error('Failed to execute Sunset command')
+
+        const payload = await response.json() as SunsetExecuteResponse
+        setSessionId(payload.sessionId)
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: formatSunsetResponseMessage(payload),
+        }])
+
+        if (payload.receipt.invalidate.parking) {
+          queryClient.invalidateQueries({ queryKey: ['workitems', 'parking'] })
+        }
+        for (const date of payload.receipt.invalidate.workitemDates ?? []) {
+          queryClient.invalidateQueries({ queryKey: ['workitems', 'day', date] })
+          queryClient.invalidateQueries({ queryKey: ['workitems', 'focus', date] })
+        }
+        for (const date of payload.receipt.invalidate.calendarDates ?? []) {
+          queryClient.invalidateQueries({ queryKey: ['calendar', 'events', 'day', date] })
+        }
+
+        const plannerDate = payload.response.navigation?.plannerDate
+        if (plannerDate) {
+          navigate(`/planner?date=${encodeURIComponent(plannerDate)}`)
+        }
+      } catch (error) {
+        console.error('Sunset command error:', error)
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I could not execute that Sunset command.' }])
+      } finally {
+        setIsStreaming(false)
+        setLiveThinkingSteps([])
+      }
+      return
+    }
+
     setIsStreaming(true)
 
     try {

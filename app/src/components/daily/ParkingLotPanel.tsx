@@ -7,14 +7,24 @@ export interface ParkingLotPanelProps {
   currentDate: string // YYYY-MM-DD — used for "Pull to today" label
   onComplete: (workItemKey: string) => void
   onPullToDate: (workItemKey: string) => void
+  onParkFromDate?: (workItemKey: string) => void
   onCreateItem: (title: string) => Promise<void>
   loading?: boolean
 }
 
-export function ParkingLotPanel({ items, currentDate, onComplete, onPullToDate, onCreateItem, loading }: ParkingLotPanelProps) {
+export function ParkingLotPanel({
+  items,
+  currentDate,
+  onComplete,
+  onPullToDate,
+  onParkFromDate,
+  onCreateItem,
+  loading,
+}: ParkingLotPanelProps) {
   const [quickAddValue, setQuickAddValue] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [draggingKey, setDraggingKey] = useState<string | null>(null)
+  const [isSnackDragOver, setIsSnackDragOver] = useState(false)
 
   const handleDragStart = useCallback((e: React.DragEvent, key: string) => {
     setDraggingKey(key)
@@ -32,6 +42,27 @@ export function ParkingLotPanel({ items, currentDate, onComplete, onPullToDate, 
       e.currentTarget.style.opacity = '1'
     }
   }, [])
+
+  const handlePanelDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('application/kaizen-snack')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setIsSnackDragOver(true)
+  }, [])
+
+  const handlePanelDragLeave = useCallback((e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsSnackDragOver(false)
+    }
+  }, [])
+
+  const handlePanelDrop = useCallback((e: React.DragEvent) => {
+    const key = e.dataTransfer.getData('application/kaizen-snack')
+    if (!key || !onParkFromDate) return
+    e.preventDefault()
+    setIsSnackDragOver(false)
+    onParkFromDate(key)
+  }, [onParkFromDate])
 
   const activeItems = items.filter(item => item.status !== 'done')
   const doneItems = items.filter(item => item.status === 'done')
@@ -56,7 +87,12 @@ export function ParkingLotPanel({ items, currentDate, onComplete, onPullToDate, 
 
   return (
     <div className="parking-lot-panel">
-      <div className="panel-card">
+      <div
+        className={`panel-card ${isSnackDragOver ? 'snack-drop-target' : ''}`}
+        onDragOver={handlePanelDragOver}
+        onDragLeave={handlePanelDragLeave}
+        onDrop={handlePanelDrop}
+      >
         <div className="panel-header">
           <span className="panel-title">Parking Lot</span>
           <span className="panel-badge">{activeItems.length} items</span>

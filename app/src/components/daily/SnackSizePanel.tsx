@@ -10,16 +10,66 @@ export interface SnackSizePanelProps {
   onCreateTask?: (title: string, dueAt?: string) => Promise<void>
   onPromoteToFocus?: (workItemKey: string) => void
   onRemoveFromFocus?: (workItemKey: string) => void
+  onDropFromParking?: (workItemKey: string) => void
   top3Keys?: string[]
   loading?: boolean
   date: string // YYYY-MM-DD for quick-add
 }
 
-export function SnackSizePanel({ items, onComplete, onCreateTask, onPromoteToFocus, onRemoveFromFocus, top3Keys = [], loading, date }: SnackSizePanelProps) {
+export function SnackSizePanel({
+  items,
+  onComplete,
+  onCreateTask,
+  onPromoteToFocus,
+  onRemoveFromFocus,
+  onDropFromParking,
+  top3Keys = [],
+  loading,
+  date,
+}: SnackSizePanelProps) {
   const [quickAddValue, setQuickAddValue] = useState('')
   const [isCreating, setIsCreating] = useState(false)
+  const [draggingKey, setDraggingKey] = useState<string | null>(null)
+  const [isParkingDragOver, setIsParkingDragOver] = useState(false)
 
   const snackItems = items
+
+  const handleDragStart = useCallback((e: React.DragEvent, key: string) => {
+    setDraggingKey(key)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('application/kaizen-snack', key)
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.45'
+    }
+  }, [])
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    setDraggingKey(null)
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1'
+    }
+  }, [])
+
+  const handlePanelDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('application/kaizen-parking')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setIsParkingDragOver(true)
+  }, [])
+
+  const handlePanelDragLeave = useCallback((e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsParkingDragOver(false)
+    }
+  }, [])
+
+  const handlePanelDrop = useCallback((e: React.DragEvent) => {
+    const key = e.dataTransfer.getData('application/kaizen-parking')
+    if (!key || !onDropFromParking) return
+    e.preventDefault()
+    setIsParkingDragOver(false)
+    onDropFromParking(key)
+  }, [onDropFromParking])
 
   const handleQuickAdd = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,7 +87,12 @@ export function SnackSizePanel({ items, onComplete, onCreateTask, onPromoteToFoc
   }, [quickAddValue, onCreateTask, date])
 
   return (
-    <div className="daily-plan-section snack-size-panel">
+    <div
+      className={`daily-plan-section snack-size-panel ${isParkingDragOver ? 'parking-drop-target' : ''}`}
+      onDragOver={handlePanelDragOver}
+      onDragLeave={handlePanelDragLeave}
+      onDrop={handlePanelDrop}
+    >
       <div className="daily-plan-section-header snack-header">
         <span className="daily-plan-section-title">Snack-Size To-Do's — In Between Meetings (&lt;10 min)</span>
       </div>
@@ -50,7 +105,13 @@ export function SnackSizePanel({ items, onComplete, onCreateTask, onPromoteToFoc
           const isCompleted = item.status === 'done'
           const isTop3 = top3Keys.includes(item.key)
           return (
-            <div key={item.key} className={`snack-item ${isCompleted ? 'completed' : ''} ${isTop3 ? 'snack-top3' : ''}`}>
+            <div
+              key={item.key}
+              className={`snack-item ${isCompleted ? 'completed' : ''} ${isTop3 ? 'snack-top3' : ''} ${draggingKey === item.key ? 'dragging' : ''}`}
+              draggable={!isCompleted}
+              onDragStart={(e) => handleDragStart(e, item.key)}
+              onDragEnd={handleDragEnd}
+            >
               <div
                 className={`playlist-checkbox ${isCompleted ? 'checked' : ''}`}
                 onClick={() => !isCompleted && onComplete(item.key)}

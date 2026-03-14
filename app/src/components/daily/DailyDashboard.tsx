@@ -5,7 +5,6 @@ import { format, parseISO, isWithinInterval, addDays } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/apiFetch'
 import { ParkingLotPanel } from './ParkingLotPanel'
-import { Top3PrioritiesPanel } from './Top3PrioritiesPanel'
 import { SnackSizePanel } from './SnackSizePanel'
 import { VetoCarousel } from './VetoCarousel'
 import { TomorrowTop3Panel } from './TomorrowTop3Panel'
@@ -21,6 +20,7 @@ import {
   useParkingLot,
   useCreateParkingItem,
   usePullToDate,
+  useParkWorkItem,
   useCompleteParkingItem,
 } from '../../hooks/useWorkItems'
 import { useActiveSeasonVetoes } from '../../hooks/useSeasons'
@@ -52,6 +52,7 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
   const { data: parkingItems = [], isLoading: loadingParking } = useParkingLot()
   const createParkingMutation = useCreateParkingItem()
   const pullToDateMutation = usePullToDate(date)
+  const parkToParkingMutation = useParkWorkItem(date)
   const completeParkingMutation = useCompleteParkingItem()
   const { data: seasonVetoes = [], isLoading: loadingSeasonVetoes } = useActiveSeasonVetoes()
 
@@ -115,14 +116,6 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
 
   const top3Keys = useMemo(() => dailyFocus?.topKeys || [], [dailyFocus])
   const playlist = workItems
-
-  const top3Items = useMemo(
-    () =>
-      top3Keys
-        .map((key: string) => workItems.find((item) => item.key === key))
-        .filter((item): item is WorkItemWithOverlays => !!item),
-    [top3Keys, workItems],
-  )
 
   // Active top3 keys: exclude done items so completed tasks don't block the 3 slots
   const activeTop3Keys = useMemo(
@@ -217,6 +210,7 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
             currentDate={date}
             onComplete={(key) => completeParkingMutation.mutate({ workItemKey: key })}
             onPullToDate={(key) => pullToDateMutation.mutate({ workItemKey: key })}
+            onParkFromDate={(key) => parkToParkingMutation.mutate({ workItemKey: key })}
             onCreateItem={async (title) => {
               await createParkingMutation.mutateAsync({ title })
             }}
@@ -224,21 +218,16 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
           />
         </div>
 
-        {/* Middle Column: Vetoes + Top3 + Snack + TomorrowTop3 */}
+        {/* Middle Column: Vetoes + Snack + TomorrowTop3 */}
         <div className="daily-left-col">
           <VetoCarousel vetoes={seasonVetoes} loading={loadingSeasonVetoes} />
-          <Top3PrioritiesPanel
-            items={top3Items}
-            onComplete={handleCompleteWorkItem}
-            onRemove={handleRemoveFromFocus}
-            loading={loadingWorkItems}
-          />
           <SnackSizePanel
             items={filteredPlaylist}
             onComplete={handleCompleteWorkItem}
             onCreateTask={handleCreateTask}
             onPromoteToFocus={handlePromoteToFocus}
             onRemoveFromFocus={handleRemoveFromFocus}
+            onDropFromParking={(key) => pullToDateMutation.mutate({ workItemKey: key })}
             top3Keys={activeTop3Keys}
             loading={loadingWorkItems}
             date={date}
