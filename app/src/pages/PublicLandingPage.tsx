@@ -60,11 +60,10 @@ export default function PublicLandingPage() {
         {!prefersReducedMotion && (
           <div className="public-landing__shape-blur" aria-hidden="true">
             <ShapeBlur
-              shapeSize={1}
-              roundness={0.2}
-              borderSize={0.05}
-              circleSize={0.1}
-              circleEdge={0.4}
+              cornerRadius={28}
+              borderSize={0.012}
+              circleSize={0.25}
+              circleEdge={0.2}
             />
           </div>
         )}
