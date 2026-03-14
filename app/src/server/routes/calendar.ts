@@ -634,6 +634,13 @@ function appendQuery(urlOrPath: string, key: string, value: string): string {
   }
 }
 
+function getDefaultNativeRedirectUri(): string | undefined {
+  const appBaseUrl = process.env.APP_BASE_URL;
+  if (!appBaseUrl) return undefined;
+  const normalized = appBaseUrl.endsWith('/') ? appBaseUrl.slice(0, -1) : appBaseUrl;
+  return `${normalized}/api/calendar/push/google/callback`;
+}
+
 function getOAuthStateSecret(): string | null {
   return (
     process.env.GOOGLE_OAUTH_STATE_SECRET ||
@@ -709,11 +716,15 @@ router.get('/google/authorize', (req: Request, res: Response) => {
   const nativeFlow = isNativeFlowRequested(req.query.native);
   const nativeCallbackParam = req.query.nativeCallback as string | undefined;
 
+  if (nativeFlow && !getOAuthStateSecret()) {
+    return res.status(503).json({ error: 'OAuth state secret is not configured' });
+  }
+
   // Only allow valid same-origin paths, default to /settings
   const redirectUrl = isValidRedirectPath(redirectParam) ? redirectParam : undefined;
   const nativeCallback = isValidNativeCallbackUri(nativeCallbackParam) ? nativeCallbackParam : undefined;
   const redirectUri = nativeFlow
-    ? process.env.GOOGLE_NATIVE_REDIRECT_URI || process.env.GOOGLE_REDIRECT_URI
+    ? process.env.GOOGLE_NATIVE_REDIRECT_URI || getDefaultNativeRedirectUri() || process.env.GOOGLE_REDIRECT_URI
     : undefined;
 
   const stateData: OAuthStateData = {
@@ -1755,13 +1766,11 @@ router.get('/sync/status', async (req: Request, res: Response) => {
       },
     });
 
-    const staleNotificationCutoff = new Date(Date.now() - 15 * 60 * 1000);
     const now = new Date();
 
     const staleCount = subscriptions.filter((sub) => {
       if (sub.state !== 'active') return true;
       if (sub.expiration <= now) return true;
-      if (sub.lastNotificationAt && sub.lastNotificationAt < staleNotificationCutoff) return true;
       return false;
     }).length;
 

@@ -572,6 +572,7 @@ model CalendarWorkspaceSubscription {
   accountId        String   @map("account_id") @db.Uuid
   calendarId       String   @map("calendar_id") @db.VarChar(255)
   subscriptionName String   @unique @map("subscription_name") @db.Text
+  channelId        String?  @unique @map("channel_id") @db.VarChar(255)
   expiration       DateTime @map("expiration")
   state            String   @default("active") @db.VarChar(20)
   resourceId       String?  @map("resource_id") @db.Text

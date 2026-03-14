@@ -80,17 +80,7 @@ function decodeSignedState(rawState: string): OAuthStateData | null {
 
 function decodeOAuthState(rawState: string | undefined): OAuthStateData | null {
   if (!rawState) return null;
-
-  const signedState = decodeSignedState(rawState);
-  if (signedState) return signedState;
-
-  try {
-    const parsed = JSON.parse(Buffer.from(rawState, 'base64').toString('utf-8')) as OAuthStateData;
-    if (!parsed.userId) return null;
-    return parsed;
-  } catch {
-    return { userId: rawState };
-  }
+  return decodeSignedState(rawState);
 }
 
 function isValidNativeCallbackUri(uri: string | undefined): boolean {
@@ -128,10 +118,10 @@ function appendQuery(urlOrPath: string, key: string, value: string): string {
 }
 
 export function readCalendarPushHeaders(req: Request): CalendarPushHeaders {
-  const channelId = req.header('x-goog-channel-id');
-  const resourceId = req.header('x-goog-resource-id');
-  const channelToken = req.header('x-goog-channel-token');
-  const resourceState = req.header('x-goog-resource-state');
+  const channelId = req.header('x-goog-channel-id') ?? null;
+  const resourceId = req.header('x-goog-resource-id') ?? null;
+  const channelToken = req.header('x-goog-channel-token') ?? null;
+  const resourceState = req.header('x-goog-resource-state') ?? null;
   const messageNumberRaw = req.header('x-goog-message-number');
 
   let messageNumber: bigint | null = null;
@@ -152,7 +142,7 @@ export function readCalendarPushHeaders(req: Request): CalendarPushHeaders {
   };
 }
 
-// POST /api/calendar/pubsub
+// POST /api/calendar/push
 // Google Calendar push notifications are header-driven (no payload body required).
 router.post('/', async (req: Request, res: Response) => {
   const { channelId, resourceId, channelToken, resourceState, messageNumber } =
@@ -162,8 +152,8 @@ router.post('/', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Missing required X-Goog headers' });
   }
 
-  const subscription = await prisma.calendarWorkspaceSubscription.findUnique({
-    where: { subscriptionName: channelId },
+  const byChannelId = await prisma.calendarWorkspaceSubscription.findUnique({
+    where: { channelId },
     select: {
       id: true,
       subscriptionName: true,
@@ -174,6 +164,18 @@ router.post('/', async (req: Request, res: Response) => {
     },
   });
 
+  const subscription = byChannelId || (await prisma.calendarWorkspaceSubscription.findUnique({
+    where: { subscriptionName: channelId },
+    select: {
+      id: true,
+      subscriptionName: true,
+      resourceId: true,
+      channelToken: true,
+      state: true,
+      lastMessageNumber: true,
+    },
+  }));
+
   if (!subscription || subscription.state === 'stopped') {
     return res.status(404).json({ error: 'Subscription not found' });
   }
@@ -182,6 +184,9 @@ router.post('/', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Channel validation failed' });
   }
 
+  const nextState = resourceState === 'not_exists' ? 'stale' : 'active';
+  const nextError = resourceState === 'not_exists' ? 'Resource no longer exists' : null;
+
   if (messageNumber !== null) {
     const updated = await prisma.calendarWorkspaceSubscription.updateMany({
       where: {
@@ -189,10 +194,10 @@ router.post('/', async (req: Request, res: Response) => {
         OR: [{ lastMessageNumber: null }, { lastMessageNumber: { lt: messageNumber } }],
       },
       data: {
-        state: 'active',
+        state: nextState,
         lastMessageNumber: messageNumber,
         lastNotificationAt: new Date(),
-        lastError: null,
+        lastError: nextError,
       },
     });
 
@@ -203,23 +208,16 @@ router.post('/', async (req: Request, res: Response) => {
     await prisma.calendarWorkspaceSubscription.update({
       where: { id: subscription.id },
       data: {
-        state: 'active',
+        state: nextState,
         lastNotificationAt: new Date(),
-        lastError: null,
+        lastError: nextError,
       },
     });
   }
 
   res.status(200).json({ ok: true });
 
-  if (resourceState === 'not_exists') {
-    await prisma.calendarWorkspaceSubscription.update({
-      where: { id: subscription.id },
-      data: {
-        state: 'stale',
-        lastError: 'Resource no longer exists',
-      },
-    }).catch((error) => console.error('[calendarPush] Failed to mark not_exists state:', error));
+  if (resourceState === 'sync' || resourceState === 'not_exists') {
     return;
   }
 
@@ -228,9 +226,13 @@ router.post('/', async (req: Request, res: Response) => {
   });
 });
 
-// GET /api/calendar/pubsub/google/callback
+// GET /api/calendar/push/google/callback
 // Native/system-browser OAuth callback path (unauthed route, state-signed).
 router.get('/google/callback', async (req: Request, res: Response) => {
+  if (!getOAuthStateSecret()) {
+    return res.status(503).json({ error: 'OAuth state secret is not configured' });
+  }
+
   const code = Array.isArray(req.query.code) ? req.query.code[0] : req.query.code;
   const stateRaw = Array.isArray(req.query.state) ? req.query.state[0] : req.query.state;
 

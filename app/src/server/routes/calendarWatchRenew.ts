@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { runPoll } from '../cron/calendarPoller';
+import { renewExpiringSubscriptions } from '../../services/calendar/calendarSubscriptionService';
 
 const router = Router();
 
 /**
- * POST /api/calendar/poll
+ * POST /api/calendar/watch/renew
  *
- * Internal fallback endpoint triggered by Supabase pg_cron every 30 minutes.
- * Protected by CALENDAR_POLL_SECRET to prevent unauthorized triggers.
+ * Internal endpoint triggered by Supabase pg_cron to renew expiring
+ * Google Calendar watch channels.
  */
 router.post('/', async (req: Request, res: Response) => {
   const secret = process.env.CALENDAR_POLL_SECRET;
@@ -17,10 +17,11 @@ router.post('/', async (req: Request, res: Response) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // ACK immediately — pg_net doesn't wait for the response body
   res.status(200).json({ ok: true });
 
-  runPoll().catch(err => console.error('[calendarPoll] Poll triggered by cron failed:', err));
+  renewExpiringSubscriptions().catch((err) =>
+    console.error('[calendarWatchRenew] Renewal triggered by cron failed:', err)
+  );
 });
 
 export default router;

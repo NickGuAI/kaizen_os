@@ -5,8 +5,7 @@ import { getAuthenticatedClient } from '../../services/calendar/tokenService';
 import { upsertCalendarEvents } from '../../services/calendar/calendarEventUpsertService';
 import { renewExpiringSubscriptions } from '../../services/calendar/calendarSubscriptionService';
 
-const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const STALE_NOTIFICATION_WINDOW_MS = 15 * 60 * 1000;
+const INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface CalendarSubscriptionSyncTarget {
   id: string;
@@ -143,8 +142,8 @@ export async function syncSubscriptionIncremental(
 }
 
 export async function syncSubscriptionByChannelId(channelId: string): Promise<void> {
-  const sub = await prisma.calendarWorkspaceSubscription.findUnique({
-    where: { subscriptionName: channelId },
+  const byChannelId = await prisma.calendarWorkspaceSubscription.findUnique({
+    where: { channelId },
     select: {
       id: true,
       userId: true,
@@ -155,6 +154,18 @@ export async function syncSubscriptionByChannelId(channelId: string): Promise<vo
     },
   });
 
+  const sub = byChannelId || (await prisma.calendarWorkspaceSubscription.findUnique({
+    where: { subscriptionName: channelId },
+    select: {
+      id: true,
+      userId: true,
+      accountId: true,
+      calendarId: true,
+      syncToken: true,
+      state: true,
+    },
+  }));
+
   if (!sub || sub.state === 'stopped') return;
 
   await syncSubscriptionIncremental(sub);
@@ -163,17 +174,9 @@ export async function syncSubscriptionByChannelId(channelId: string): Promise<vo
 export async function runPoll(): Promise<void> {
   await renewExpiringSubscriptions();
 
-  const staleNotificationCutoff = new Date(Date.now() - STALE_NOTIFICATION_WINDOW_MS);
-  const now = new Date();
-
   const subs = await prisma.calendarWorkspaceSubscription.findMany({
     where: {
-      OR: [
-        { state: { in: ['stale', 'error'] } },
-        { expiration: { lte: now } },
-        { lastNotificationAt: null },
-        { lastNotificationAt: { lt: staleNotificationCutoff } },
-      ],
+      state: { not: 'stopped' },
     },
     select: {
       id: true,
@@ -186,7 +189,7 @@ export async function runPoll(): Promise<void> {
 
   if (subs.length === 0) return;
 
-  console.log(`[calendarPoller] Fallback polling ${subs.length} stale/expired calendar channel(s)`);
+  console.log(`[calendarPoller] Fallback polling ${subs.length} calendar channel(s)`);
 
   await Promise.allSettled(
     subs.map((sub) =>
@@ -202,5 +205,5 @@ export function startCalendarPollerCron(): void {
   setInterval(() => {
     runPoll().catch((err) => console.error('[calendarPoller] Poll failed:', err));
   }, INTERVAL_MS);
-  console.log('[calendarPoller] Calendar poller started (every 5 min)');
+  console.log('[calendarPoller] Calendar poller started (every 30 min)');
 }

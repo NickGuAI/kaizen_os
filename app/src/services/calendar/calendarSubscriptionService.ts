@@ -7,7 +7,7 @@ import { getAuthenticatedClient } from './tokenService';
 
 const DEFAULT_CALENDAR_IDS = ['primary'];
 const WATCH_TTL_SECONDS = 7 * 24 * 60 * 60;
-const RENEW_LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
+const RENEW_LOOKAHEAD_MS = 2 * 24 * 60 * 60 * 1000;
 
 interface WatchChannelDetails {
   channelId: string;
@@ -25,7 +25,7 @@ function getWebhookAddress(): string | null {
   if (!appBaseUrl) return null;
 
   const normalized = appBaseUrl.endsWith('/') ? appBaseUrl.slice(0, -1) : appBaseUrl;
-  return `${normalized}/api/calendar/pubsub`;
+  return `${normalized}/api/calendar/push`;
 }
 
 function getStateSecret(): string | null {
@@ -191,6 +191,7 @@ async function upsertPollOnlySubscription(
       expiration: fallbackExpiration,
       syncToken,
       resourceId: null,
+      channelId: null,
       channelToken: null,
       channelAddress: null,
       subscriptionName: `poll_only_${accountId}_${calendarId}`,
@@ -220,6 +221,7 @@ async function ensureWatchChannelForCalendar(
     where: { accountId_calendarId: { accountId, calendarId } },
     select: {
       id: true,
+      channelId: true,
       subscriptionName: true,
       resourceId: true,
       syncToken: true,
@@ -258,6 +260,7 @@ async function ensureWatchChannelForCalendar(
     await prisma.calendarWorkspaceSubscription.upsert({
       where: { accountId_calendarId: { accountId, calendarId } },
       update: {
+        channelId: watchChannel.channelId,
         subscriptionName: watchChannel.channelId,
         state: 'active',
         resourceId: watchChannel.resourceId,
@@ -271,6 +274,7 @@ async function ensureWatchChannelForCalendar(
         userId,
         accountId,
         calendarId,
+        channelId: watchChannel.channelId,
         subscriptionName: watchChannel.channelId,
         expiration: watchChannel.expiration,
         state: 'active',
@@ -281,8 +285,9 @@ async function ensureWatchChannelForCalendar(
       },
     });
 
-    if (existing?.resourceId && existing.subscriptionName !== watchChannel.channelId) {
-      await stopChannel(accountId, existing.subscriptionName, existing.resourceId);
+    const oldChannelId = existing?.channelId || existing?.subscriptionName || null;
+    if (existing?.resourceId && oldChannelId !== watchChannel.channelId) {
+      await stopChannel(accountId, oldChannelId, existing.resourceId);
     }
   } catch (error) {
     console.error('[calendarSubscription] Failed to create watch channel', {
@@ -316,6 +321,7 @@ async function stopAndDeleteSubscriptions(
       id: true,
       userId: true,
       calendarId: true,
+      channelId: true,
       subscriptionName: true,
       resourceId: true,
     },
@@ -323,7 +329,7 @@ async function stopAndDeleteSubscriptions(
 
   await Promise.all(
     subs.map(async (sub) => {
-      await stopChannel(accountId, sub.subscriptionName, sub.resourceId);
+      await stopChannel(accountId, sub.channelId || sub.subscriptionName, sub.resourceId);
       await prisma.cachedCalendarEvent.deleteMany({
         where: {
           userId: sub.userId,

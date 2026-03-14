@@ -130,10 +130,11 @@ describe('calendarSubscriptionService', () => {
           },
         },
         update: expect.objectContaining({
+          channelId: expect.any(String),
           state: 'active',
           syncToken: 'sync-1',
           resourceId: 'resource-1',
-          channelAddress: 'https://kaizen.example.com/api/calendar/pubsub',
+          channelAddress: 'https://kaizen.example.com/api/calendar/push',
         }),
       })
     )

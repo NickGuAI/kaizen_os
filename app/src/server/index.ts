@@ -11,7 +11,7 @@ import themeAllocationsRouter from './routes/themeAllocations'
 import usersRouter from './routes/users'
 import agentRouter from './routes/agent'
 import calendarRouter from './routes/calendar'
-import calendarPubSubReceiverRouter from './routes/calendarPubSubReceiver'
+import calendarPushReceiverRouter from './routes/calendarPushReceiver'
 import tagsRouter from './routes/tags'
 import workitemsRouter from './routes/workitems'
 import notionRouter from './routes/notion'
@@ -25,6 +25,7 @@ import { initializeAdapters } from '../services/workitems'
 import { requireAuthV2 } from './middleware/authProvider'
 import { logAgentAuthConfig } from './utils/agentDebug'
 import calendarPollInternalRouter from './routes/calendarPollInternal'
+import calendarWatchRenewRouter from './routes/calendarWatchRenew'
 import preClassifyInternalRouter from './routes/preClassifyInternal'
 import dailyNotesRouter from './routes/dailyNotes'
 
@@ -183,8 +184,9 @@ app.use('/api/events', requireAuthV2, eventsRouter)
 app.use('/api/allocations', requireAuthV2, themeAllocationsRouter)
 app.use('/api/users', requireAuthV2, usersRouter)
 app.use('/api/agent', requireAuthV2, agentRouter)
-app.use('/api/calendar/pubsub', calendarPubSubReceiverRouter)
+app.use('/api/calendar/push', calendarPushReceiverRouter)
 app.use('/api/calendar/poll', calendarPollInternalRouter)
+app.use('/api/calendar/watch/renew', calendarWatchRenewRouter)
 app.use('/api/calendar/pre-classify', preClassifyInternalRouter)
 app.use('/api/calendar', requireAuthV2, calendarRouter)
 app.use('/api/tags', requireAuthV2, tagsRouter)
@@ -245,7 +247,7 @@ app.get('*', (req: Request, res: Response) => {
 app.listen(PORT, () => {
   console.log(`🚀 API server running on http://localhost:${PORT}`)
   logAgentAuthConfig()
-  console.log('[server] Calendar polling via Supabase pg_cron → POST /api/calendar/poll')
+  console.log('[server] Calendar push via /api/calendar/push; fallback poll via /api/calendar/poll')
 })
 
 export default app
