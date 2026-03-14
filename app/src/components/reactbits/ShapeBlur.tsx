@@ -219,6 +219,13 @@ export default function ShapeBlur({
       quad.scale.set(w, h, 1)
       vResolution.set(w, h).multiplyScalar(dpr)
       material.uniforms.u_pixelRatio.value = dpr
+
+      // Scale shape to fill the container regardless of aspect ratio.
+      // The shader's coord() normalizes to a square; wider containers
+      // stretch x, so we compensate with the aspect ratio.
+      const aspect = w / h
+      const base = shapeSize
+      material.uniforms.u_shapeSize.value = aspect > 1 ? base * aspect : base
     }
 
     resize()
