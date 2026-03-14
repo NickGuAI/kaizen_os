@@ -18,12 +18,9 @@ SELECT cron.schedule(
   '*/30 * * * *',
   $$
   SELECT net.http_post(
-    url     := 'https://kaizen.gehirn.ai/api/calendar/poll',
-    headers := jsonb_build_object(
-      'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.calendar_poll_secret')
-    ),
-    body    := '{}'::jsonb
+    url     => 'https://kaizen.gehirn.ai/api/calendar/poll',
+    headers => '{"Content-Type": "application/json", "Authorization": "Bearer <CALENDAR_POLL_SECRET>"}'::jsonb,
+    body    => '{}'::jsonb
   );
   $$
 );
@@ -37,12 +34,9 @@ SELECT cron.schedule(
   '0 3 * * *',
   $$
   SELECT net.http_post(
-    url     := 'https://kaizen.gehirn.ai/api/calendar/watch/renew',
-    headers := jsonb_build_object(
-      'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.calendar_poll_secret')
-    ),
-    body    := '{}'::jsonb
+    url     => 'https://kaizen.gehirn.ai/api/calendar/watch/renew',
+    headers => '{"Content-Type": "application/json", "Authorization": "Bearer <CALENDAR_POLL_SECRET>"}'::jsonb,
+    body    => '{}'::jsonb
   );
   $$
 );
