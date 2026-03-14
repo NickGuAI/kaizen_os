@@ -259,53 +259,93 @@ export default function AgentChatPage() {
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
-      let assistantMessage = ''
+      let streamingText = ''
+      let buffer = ''
       const thinkingSteps: ThinkingStep[] = []
 
       setMessages(prev => [...prev, { role: 'assistant', content: '', thinkingSteps: [] }])
+
+      const updateLastMessage = (text: string) => {
+        setMessages(prev => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last && last.role === 'assistant') {
+            last.content = text
+            last.thinkingSteps = [...thinkingSteps]
+          }
+          return updated
+        })
+      }
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        for (const line of chunk.split('\n')) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') continue
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' // keep incomplete last line
 
-            try {
-              const parsed = JSON.parse(data)
-              if (parsed.type === 'session') {
-                setSessionId(parsed.sessionId)
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') continue
+
+          try {
+            const parsed = JSON.parse(data)
+
+            if (parsed.type === 'session') {
+              setSessionId(parsed.sessionId)
+              continue
+            }
+
+            // Token-by-token streaming via SDK stream_event
+            if (parsed.type === 'stream_event' && parsed.event) {
+              const evt = parsed.event
+              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+                streamingText += evt.delta.text
+                updateLastMessage(streamingText)
               }
-              if (parsed.type === 'assistant' && parsed.message?.content) {
-                for (const block of parsed.message.content) {
-                  if (block.type === 'text') {
-                    assistantMessage += block.text
-                  } else if (block.type === 'tool_use') {
-                    const toolName = block.name || 'unknown'
-                    let stepType: ThinkingStep['type'] = 'processing'
-                    let label = 'Processing'
-                    if (toolName.includes('read') || toolName.includes('get') || toolName.includes('list')) {
-                      stepType = 'reading'; label = 'Reading'
-                    } else if (toolName.includes('search') || toolName.includes('find')) {
-                      stepType = 'analyzing'; label = 'Analyzing'
-                    }
-                    thinkingSteps.push({ type: stepType, label, text: `Using tool: ${toolName}` })
-                    setLiveThinkingSteps([...thinkingSteps])
-                  }
+              if (evt.type === 'content_block_start' && evt.content_block?.type === 'tool_use') {
+                const toolName = evt.content_block.name || 'unknown'
+                let stepType: ThinkingStep['type'] = 'processing'
+                let label = 'Processing'
+                if (toolName.includes('read') || toolName.includes('get') || toolName.includes('list')) {
+                  stepType = 'reading'; label = 'Reading'
+                } else if (toolName.includes('search') || toolName.includes('find')) {
+                  stepType = 'analyzing'; label = 'Analyzing'
                 }
-                setMessages(prev => {
-                  const newMessages = [...prev]
-                  const lastMsg = newMessages[newMessages.length - 1]
-                  lastMsg.content = assistantMessage
-                  lastMsg.thinkingSteps = [...thinkingSteps]
-                  return newMessages
-                })
+                thinkingSteps.push({ type: stepType, label, text: `Using tool: ${toolName}` })
+                setLiveThinkingSteps([...thinkingSteps])
               }
-            } catch { /* ignore parse errors */ }
-          }
+              continue
+            }
+
+            // Fallback: complete assistant message (envelope event)
+            if (parsed.type === 'assistant' && parsed.message?.content) {
+              let envelopeText = ''
+              for (const block of parsed.message.content) {
+                if (block.type === 'text') {
+                  envelopeText += block.text
+                } else if (block.type === 'tool_use') {
+                  const toolName = block.name || 'unknown'
+                  let stepType: ThinkingStep['type'] = 'processing'
+                  let label = 'Processing'
+                  if (toolName.includes('read') || toolName.includes('get') || toolName.includes('list')) {
+                    stepType = 'reading'; label = 'Reading'
+                  } else if (toolName.includes('search') || toolName.includes('find')) {
+                    stepType = 'analyzing'; label = 'Analyzing'
+                  }
+                  thinkingSteps.push({ type: stepType, label, text: `Using tool: ${toolName}` })
+                  setLiveThinkingSteps([...thinkingSteps])
+                }
+              }
+              // Use envelope text as authoritative (overrides deltas for this turn)
+              if (envelopeText) {
+                streamingText = envelopeText
+                updateLastMessage(streamingText)
+              }
+            }
+          } catch { /* ignore parse errors */ }
         }
       }
     } catch (error) {
