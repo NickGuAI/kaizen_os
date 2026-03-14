@@ -1,12 +1,13 @@
 // Daily Dashboard (Execution Mode) - Default view for day-to-day task management
 // Layout: Two-column (left: Top3 + Snack + ParkingLot + Season Vetoes + TomorrowTop3, right: HourByHour)
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useEffect, useState } from 'react'
 import { format, parseISO, isWithinInterval, addDays } from 'date-fns'
+import { closestCenter, DndContext, PointerSensor, type DragEndEvent, useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../../lib/apiFetch'
-import { ParkingLotPanel } from './ParkingLotPanel'
-import { Top3PrioritiesPanel } from './Top3PrioritiesPanel'
-import { SnackSizePanel } from './SnackSizePanel'
+import { PARKING_DROP_ZONE_ID, ParkingLotPanel } from './ParkingLotPanel'
+import { SNACK_DROP_ZONE_ID, SnackSizePanel } from './SnackSizePanel'
 import { VetoCarousel } from './VetoCarousel'
 import { TomorrowTop3Panel } from './TomorrowTop3Panel'
 import { HourByHourPanel } from './HourByHourPanel'
@@ -21,6 +22,7 @@ import {
   useParkingLot,
   useCreateParkingItem,
   usePullToDate,
+  useParkWorkItem,
   useCompleteParkingItem,
 } from '../../hooks/useWorkItems'
 import { useActiveSeasonVetoes } from '../../hooks/useSeasons'
@@ -52,6 +54,7 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
   const { data: parkingItems = [], isLoading: loadingParking } = useParkingLot()
   const createParkingMutation = useCreateParkingItem()
   const pullToDateMutation = usePullToDate(date)
+  const parkToParkingMutation = useParkWorkItem(date)
   const completeParkingMutation = useCompleteParkingItem()
   const { data: seasonVetoes = [], isLoading: loadingSeasonVetoes } = useActiveSeasonVetoes()
 
@@ -115,14 +118,7 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
 
   const top3Keys = useMemo(() => dailyFocus?.topKeys || [], [dailyFocus])
   const playlist = workItems
-
-  const top3Items = useMemo(
-    () =>
-      top3Keys
-        .map((key: string) => workItems.find((item) => item.key === key))
-        .filter((item): item is WorkItemWithOverlays => !!item),
-    [top3Keys, workItems],
-  )
+  const [orderedSnackKeys, setOrderedSnackKeys] = useState<string[]>([])
 
   // Active top3 keys: exclude done items so completed tasks don't block the 3 slots
   const activeTop3Keys = useMemo(
@@ -142,6 +138,34 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
 
   // No block-selection in the new daily plan layout; use full playlist
   const filteredPlaylist = playlist
+  const orderedPlaylist = useMemo(() => {
+    if (orderedSnackKeys.length === 0) return filteredPlaylist
+
+    const byKey = new Map(filteredPlaylist.map((item) => [item.key, item]))
+    return orderedSnackKeys
+      .map((key) => byKey.get(key))
+      .filter((item): item is WorkItemWithOverlays => Boolean(item))
+  }, [filteredPlaylist, orderedSnackKeys])
+
+  useEffect(() => {
+    setOrderedSnackKeys((prev) => {
+      const nextKeys = filteredPlaylist.map((item) => item.key)
+      if (nextKeys.length === 0) return []
+
+      const kept = prev.filter((key) => nextKeys.includes(key))
+      const missing = nextKeys.filter((key) => !kept.includes(key))
+      return [...kept, ...missing]
+    })
+  }, [filteredPlaylist])
+
+  const priorityCardIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const key of activeTop3Keys) {
+      const item = workItems.find((workItem) => workItem.key === key)
+      if (item?.linkedCardId) ids.add(item.linkedCardId)
+    }
+    return Array.from(ids)
+  }, [activeTop3Keys, workItems])
 
   const currentBlock = useMemo(() => {
     const now = new Date()
@@ -207,55 +231,98 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
     [date, createMutation],
   )
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+  )
+
+  const handleDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
+      if (!over) return
+
+      const activeId = String(active.id)
+      const overId = String(over.id)
+      const activeSource = active.data.current?.source as string | undefined
+      const activeKey = String(active.data.current?.workItemKey ?? activeId)
+      const overKey = String(over.data.current?.workItemKey ?? overId)
+      const overType = over.data.current?.type as string | undefined
+
+      if (
+        activeSource === 'parking' &&
+        (overId === SNACK_DROP_ZONE_ID || overType === 'snack-item' || overType === 'snack-zone')
+      ) {
+        pullToDateMutation.mutate({ workItemKey: activeKey })
+        return
+      }
+
+      if (
+        activeSource === 'snack' &&
+        (overId === PARKING_DROP_ZONE_ID || overType === 'parking-item' || overType === 'parking-zone')
+      ) {
+        parkToParkingMutation.mutate({ workItemKey: activeKey })
+        return
+      }
+
+      if (activeSource === 'snack' && overType === 'snack-item' && activeKey !== overKey) {
+        setOrderedSnackKeys((prev) => {
+          const oldIndex = prev.indexOf(activeKey)
+          const newIndex = prev.indexOf(overKey)
+          if (oldIndex < 0 || newIndex < 0) return prev
+          return arrayMove(prev, oldIndex, newIndex)
+        })
+      }
+    },
+    [parkToParkingMutation, pullToDateMutation],
+  )
+
   return (
     <div className="daily-dashboard">
-      <div className="daily-plan-layout">
-        {/* Left Column (desktop): Parking Lot */}
-        <div className="daily-parking-col">
-          <ParkingLotPanel
-            items={parkingItems}
-            currentDate={date}
-            onComplete={(key) => completeParkingMutation.mutate({ workItemKey: key })}
-            onPullToDate={(key) => pullToDateMutation.mutate({ workItemKey: key })}
-            onCreateItem={async (title) => {
-              await createParkingMutation.mutateAsync({ title })
-            }}
-            loading={loadingParking}
-          />
-        </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div className="daily-plan-layout">
+          {/* Left Column (desktop): Parking Lot */}
+          <div className="daily-parking-col">
+            <ParkingLotPanel
+              items={parkingItems}
+              currentDate={date}
+              onComplete={(key) => completeParkingMutation.mutate({ workItemKey: key })}
+              onPullToDate={(key) => pullToDateMutation.mutate({ workItemKey: key })}
+              onCreateItem={async (title) => {
+                await createParkingMutation.mutateAsync({ title })
+              }}
+              loading={loadingParking}
+            />
+          </div>
 
-        {/* Middle Column: Vetoes + Top3 + Snack + TomorrowTop3 */}
-        <div className="daily-left-col">
-          <VetoCarousel vetoes={seasonVetoes} loading={loadingSeasonVetoes} />
-          <Top3PrioritiesPanel
-            items={top3Items}
-            onComplete={handleCompleteWorkItem}
-            onRemove={handleRemoveFromFocus}
-            loading={loadingWorkItems}
-          />
-          <SnackSizePanel
-            items={filteredPlaylist}
-            onComplete={handleCompleteWorkItem}
-            onCreateTask={handleCreateTask}
-            onPromoteToFocus={handlePromoteToFocus}
-            onRemoveFromFocus={handleRemoveFromFocus}
-            top3Keys={activeTop3Keys}
-            loading={loadingWorkItems}
-            date={date}
-          />
-          <TomorrowTop3Panel items={tomorrowTop3Items} loading={false} />
-        </div>
+          {/* Middle Column: Vetoes + Snack + TomorrowTop3 */}
+          <div className="daily-left-col">
+            <VetoCarousel vetoes={seasonVetoes} loading={loadingSeasonVetoes} />
+            <SnackSizePanel
+              items={orderedPlaylist}
+              onComplete={handleCompleteWorkItem}
+              onCreateTask={handleCreateTask}
+              onPromoteToFocus={handlePromoteToFocus}
+              onRemoveFromFocus={handleRemoveFromFocus}
+              top3Keys={activeTop3Keys}
+              loading={loadingWorkItems}
+              date={date}
+            />
+            <TomorrowTop3Panel items={tomorrowTop3Items} loading={false} />
+          </div>
 
-        {/* Right Column: Hour-by-Hour */}
-        <div className="daily-right-col">
-          <HourByHourPanel
-            events={themedEvents}
-            currentBlock={currentBlock ?? null}
-            loading={loadingEvents}
-            date={date}
-          />
+          {/* Right Column: Hour-by-Hour */}
+          <div className="daily-right-col">
+            <HourByHourPanel
+              events={themedEvents}
+              currentBlock={currentBlock ?? null}
+              loading={loadingEvents}
+              date={date}
+              top3Keys={activeTop3Keys}
+              top3CardIds={priorityCardIds}
+            />
+          </div>
         </div>
-      </div>
+      </DndContext>
     </div>
   )
 }

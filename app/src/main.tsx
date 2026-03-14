@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './lib/authContext'
 import { PostHogProvider } from 'posthog-js/react'
+import 'bootstrap/dist/css/bootstrap.min.css'
 import './styles/index.css'
 
 const queryClient = new QueryClient({

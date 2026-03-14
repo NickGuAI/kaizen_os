@@ -151,6 +151,65 @@ export function usePullToDate(date: string) {
   })
 }
 
+// Mutation: park an item from a day list back into the parking lot
+export function useParkWorkItem(date: string) {
+  const queryClient = useQueryClient()
+  const dayKey = ['workitems', 'day', date]
+
+  return useMutation({
+    mutationFn: async ({ workItemKey }: { workItemKey: string }) => {
+      const res = await apiFetch('/api/workitems/park', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workItemKey }),
+      })
+      if (!res.ok) throw new Error('Failed to park item')
+      return res.json()
+    },
+    onMutate: async ({ workItemKey }) => {
+      await queryClient.cancelQueries({ queryKey: dayKey })
+      await queryClient.cancelQueries({ queryKey: PARKING_KEY })
+
+      const previousDay = queryClient.getQueryData<WorkItemWithOverlays[]>(dayKey)
+      const previousParking = queryClient.getQueryData<WorkItemWithOverlays[]>(PARKING_KEY)
+      const parkedItem = previousDay?.find((item) => item.key === workItemKey)
+
+      queryClient.setQueryData<WorkItemWithOverlays[]>(dayKey, (old) =>
+        old?.filter((item) => item.key !== workItemKey)
+      )
+
+      if (parkedItem) {
+        queryClient.setQueryData<WorkItemWithOverlays[]>(PARKING_KEY, (old) => {
+          if (old?.some((item) => item.key === workItemKey)) {
+            return old
+          }
+
+          const nextItem: WorkItemWithOverlays = {
+            ...parkedItem,
+            dueAt: undefined,
+          }
+
+          return old ? [...old, nextItem] : [nextItem]
+        })
+      }
+
+      return { previousDay, previousParking }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previousDay) queryClient.setQueryData(dayKey, ctx.previousDay)
+      if (ctx?.previousParking) queryClient.setQueryData(PARKING_KEY, ctx.previousParking)
+      queryClient.invalidateQueries({ queryKey: dayKey })
+      queryClient.invalidateQueries({ queryKey: PARKING_KEY })
+    },
+    onSettled: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: dayKey })
+        queryClient.invalidateQueries({ queryKey: PARKING_KEY })
+      }, 1000)
+    },
+  })
+}
+
 // Mutation: complete a parking lot item (no date context)
 export function useCompleteParkingItem() {
   const queryClient = useQueryClient()

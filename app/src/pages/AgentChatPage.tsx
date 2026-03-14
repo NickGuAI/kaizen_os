@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { animate, stagger } from 'animejs'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import agentIcon from '../assets/agent.png'
 import type { AgentSession, AgentMessage } from '../lib/api'
 import { apiFetch } from '../lib/apiFetch'
+import { formatSunsetResponseMessage, parseSunsetCommand, type SunsetExecuteResponse } from '../lib/sunsetCommands'
 
 const AGENT_API_BASE = '/api/agent'
 
@@ -123,6 +125,7 @@ const TypingIndicator = ({ thinkingSteps = [] }: { thinkingSteps?: ThinkingStep[
 
 export default function AgentChatPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { sessionId: urlSessionId } = useParams<{ sessionId?: string }>()
   
   const [messages, setMessages] = useState<Message[]>([])
@@ -145,7 +148,10 @@ export default function AgentChatPage() {
   useEffect(() => {
     if (urlSessionId) {
       loadSession(urlSessionId)
+      return
     }
+    setSessionId(null)
+    setMessages([])
   }, [urlSessionId])
 
   const loadSession = async (id: string) => {
@@ -194,6 +200,51 @@ export default function AgentChatPage() {
     const userMessage: Message = { role: 'user', content: messageContent }
     setMessages(prev => [...prev, userMessage])
     setInput('')
+    const sunsetCommand = parseSunsetCommand(messageContent)
+
+    if (sunsetCommand) {
+      setIsStreaming(true)
+      try {
+        const response = await apiFetch(`${AGENT_API_BASE}/sunset/execute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: messageContent, sessionId }),
+        })
+
+        if (!response.ok) throw new Error('Failed to execute command')
+
+        const payload = await response.json() as SunsetExecuteResponse
+        setSessionId(payload.sessionId)
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: formatSunsetResponseMessage(payload),
+        }])
+
+        if (payload.receipt.invalidate.parking) {
+          queryClient.invalidateQueries({ queryKey: ['workitems', 'parking'] })
+        }
+        for (const date of payload.receipt.invalidate.workitemDates ?? []) {
+          queryClient.invalidateQueries({ queryKey: ['workitems', 'day', date] })
+          queryClient.invalidateQueries({ queryKey: ['workitems', 'focus', date] })
+        }
+        for (const date of payload.receipt.invalidate.calendarDates ?? []) {
+          queryClient.invalidateQueries({ queryKey: ['calendar', 'events', 'day', date] })
+        }
+
+        const plannerDate = payload.response.navigation?.plannerDate
+        if (plannerDate) {
+          navigate(`/planner?date=${encodeURIComponent(plannerDate)}`)
+        }
+      } catch (error) {
+        console.error('Sunset command error:', error)
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I could not execute that Sunset command.' }])
+      } finally {
+        setIsStreaming(false)
+        setLiveThinkingSteps([])
+      }
+      return
+    }
+
     setIsStreaming(true)
 
     try {
@@ -269,7 +320,7 @@ export default function AgentChatPage() {
   const handleNewSession = () => {
     setSessionId(null)
     setMessages([])
-    navigate('/chat')
+    navigate('/')
   }
 
   const loadSessions = async () => {
@@ -354,7 +405,7 @@ export default function AgentChatPage() {
             </svg>
             History
           </button>
-          <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')} className="agent-sidebar-btn">
+          <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/planner')} className="agent-sidebar-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>

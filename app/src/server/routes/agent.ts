@@ -1,10 +1,14 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { randomUUID } from 'crypto'
 import express, { Request } from 'express'
 import { query, type NonNullableUsage } from '@anthropic-ai/claude-agent-sdk'
 import { createAgentTools, ToolContext, createWorkitemTools, WorkitemToolContext, createCalendarTools, CalendarToolContext } from '../agents'
 import { userService } from '../../services/userService'
+import { completeWorkItem, createWorkItem, moveWorkItemToDate, parkWorkItem } from '../../services/workitems/workItemService'
+import { isValidLocalDate } from '../../utils/dateUtils'
+import { parseSunsetCommand, type SunsetExecuteResponse } from '../../lib/sunsetCommands'
 import prisma from '../../lib/db'
 import { createAgentSdkStderrLogger } from '../utils/agentDebug'
 
@@ -113,6 +117,31 @@ const router = express.Router()
  *     responses:
  *       204:
  *         description: Session deleted
+ * /api/agent/sunset/execute:
+ *   post:
+ *     summary: Execute command-style Sunset chat operations
+ *     tags:
+ *       - Agent
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *               sessionId:
+ *                 type: string
+ *             required:
+ *               - message
+ *     responses:
+ *       200:
+ *         description: Structured command response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GenericObject'
  */
 // Type for mutation payload
 interface MutationPayload {
@@ -128,6 +157,209 @@ interface ContentBlock {
   type: string
   text?: string
 }
+
+async function resolveSunsetSession(userId: string, clientSessionId: string | undefined, title: string) {
+  if (clientSessionId) {
+    const existing = await prisma.agentSession.findFirst({
+      where: { id: clientSessionId, userId },
+    })
+    if (existing) {
+      return existing
+    }
+  }
+
+  return prisma.agentSession.create({
+    data: {
+      userId,
+      title: title.slice(0, 120),
+      claudeSession: `sunset-${randomUUID()}`,
+    },
+  })
+}
+
+function normalizeInvalidateHints(invalidate: {
+  parking?: boolean
+  workitemDates?: string[]
+  calendarDates?: string[]
+}) {
+  return {
+    parking: Boolean(invalidate.parking),
+    workitemDates: Array.from(new Set(invalidate.workitemDates ?? [])),
+    calendarDates: Array.from(new Set(invalidate.calendarDates ?? [])),
+  }
+}
+
+router.post('/sunset/execute', async (req: Request, res) => {
+  const { message, sessionId: clientSessionId } = req.body as {
+    message?: string
+    sessionId?: string
+  }
+  const userId = req.user!.id
+
+  if (!message || typeof message !== 'string') {
+    return res.status(400).json({ error: 'Message is required' })
+  }
+
+  const command = parseSunsetCommand(message)
+  if (!command) {
+    return res.status(400).json({
+      error: 'UNSUPPORTED_COMMAND',
+      message: 'Unsupported Sunset command. Try /task or /calendar commands.',
+    })
+  }
+
+  try {
+    const agentSession = await resolveSunsetSession(userId, clientSessionId, message)
+    const receiptId = `sunset-${Date.now()}-${randomUUID().slice(0, 8)}`
+    const executedAt = new Date().toISOString()
+
+    await prisma.agentMessage.create({
+      data: {
+        sessionId: agentSession.id,
+        userId,
+        role: 'user',
+        content: message,
+      },
+    })
+
+    const invalidate: {
+      parking?: boolean
+      workitemDates?: string[]
+      calendarDates?: string[]
+    } = {}
+    let undoSupported = false
+    let assistantMessage = ''
+    let responseData: Record<string, unknown> | undefined
+    let navigation: { plannerDate?: string } | undefined
+
+    if (command.kind === 'task.create') {
+      if (command.dueDate && !isValidLocalDate(command.dueDate)) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'dueDate must be a valid YYYY-MM-DD date',
+        })
+      }
+
+      const dueAt = command.dueDate ? `${command.dueDate}T00:00:00.000Z` : undefined
+      const created = await createWorkItem(userId, {
+        title: command.title,
+        dueAt,
+      })
+
+      invalidate.parking = !command.dueDate
+      if (command.dueDate) {
+        invalidate.workitemDates = [command.dueDate]
+      }
+
+      assistantMessage = command.dueDate
+        ? `Created task "${created.title}" for ${command.dueDate}.`
+        : `Created parking lot task "${created.title}".`
+      responseData = {
+        workItemKey: created.key,
+        title: created.title,
+        dueDate: command.dueDate ?? null,
+      }
+    }
+
+    if (command.kind === 'task.complete') {
+      await completeWorkItem(userId, command.workItemKey)
+      invalidate.parking = true
+      assistantMessage = `Completed task ${command.workItemKey}.`
+      responseData = { workItemKey: command.workItemKey }
+    }
+
+    if (command.kind === 'task.move') {
+      if (!isValidLocalDate(command.date)) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'date must be a valid YYYY-MM-DD date',
+        })
+      }
+
+      await moveWorkItemToDate(userId, command.workItemKey, command.date)
+      invalidate.parking = true
+      invalidate.workitemDates = [command.date]
+      invalidate.calendarDates = [command.date]
+      navigation = { plannerDate: command.date }
+      assistantMessage = `Moved ${command.workItemKey} to ${command.date}.`
+      responseData = { workItemKey: command.workItemKey, date: command.date }
+    }
+
+    if (command.kind === 'task.park') {
+      await parkWorkItem(userId, command.workItemKey)
+      invalidate.parking = true
+      assistantMessage = `Moved ${command.workItemKey} to Parking Lot.`
+      responseData = { workItemKey: command.workItemKey }
+    }
+
+    if (command.kind === 'calendar.focus') {
+      if (!isValidLocalDate(command.date)) {
+        return res.status(400).json({
+          error: 'VALIDATION_ERROR',
+          message: 'date must be a valid YYYY-MM-DD date',
+        })
+      }
+
+      invalidate.workitemDates = [command.date]
+      invalidate.calendarDates = [command.date]
+      navigation = { plannerDate: command.date }
+      assistantMessage = `Calendar focus moved to ${command.date}.`
+      responseData = { date: command.date }
+      undoSupported = true
+    }
+
+    const payload: SunsetExecuteResponse = {
+      mode: 'sunset',
+      sessionId: agentSession.id,
+      command: {
+        kind: command.kind,
+        raw: message,
+      },
+      receipt: {
+        id: receiptId,
+        at: executedAt,
+        undoSupported,
+        invalidate: normalizeInvalidateHints(invalidate),
+      },
+      response: {
+        message: assistantMessage,
+        ...(navigation && { navigation }),
+        ...(responseData && { data: responseData }),
+      },
+    }
+
+    await prisma.agentMessage.create({
+      data: {
+        sessionId: agentSession.id,
+        userId,
+        role: 'assistant',
+        content: assistantMessage,
+        checkpointUuid: receiptId,
+      },
+    })
+
+    await prisma.event.create({
+      data: {
+        userId,
+        eventType: 'workitem_attributed',
+        payload: {
+          operation: 'sunset_command',
+          command,
+          response: responseData,
+          undoSupported,
+          agentSessionId: agentSession.id,
+          checkpointUuid: receiptId,
+          executedAt,
+        },
+      },
+    })
+
+    return res.json(payload)
+  } catch (error: unknown) {
+    const messageText = error instanceof Error ? error.message : 'Failed to execute Sunset command'
+    return res.status(500).json({ error: messageText })
+  }
+})
 
 router.post('/chat', async (req: Request, res) => {
   const { message, sessionId: clientSessionId } = req.body

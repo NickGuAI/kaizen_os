@@ -18,6 +18,7 @@ import AuthCallbackPage from './pages/AuthCallbackPage'
 import OnboardingPage from './pages/OnboardingPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './lib/authContext'
+import { AppLayout } from './components/layout'
 
 function CreateDirector() {
   const [searchParams] = useSearchParams()
@@ -36,10 +37,22 @@ function RootRoute() {
   }
 
   if (user) {
-    return <Navigate to="/app" replace />
+    return (
+      <AppLayout showAgentChatWidget={false}>
+        <AgentChatPage />
+      </AppLayout>
+    )
   }
 
   return <PublicLandingPage />
+}
+
+function AgentChatScene() {
+  return (
+    <AppLayout showAgentChatWidget={false}>
+      <AgentChatPage />
+    </AppLayout>
+  )
 }
 
 function App() {
@@ -51,8 +64,11 @@ function App() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/app" element={<LandingPage />} />
-          <Route path="/themes" element={<Navigate to="/app" replace />} />
+          <Route path="/chat" element={<Navigate to="/" replace />} />
+          <Route path="/chat/:sessionId" element={<AgentChatScene />} />
+          <Route path="/app" element={<Navigate to="/planner" replace />} />
+          <Route path="/planner" element={<LandingPage />} />
+          <Route path="/themes" element={<Navigate to="/planner" replace />} />
           <Route path="/themes-overview" element={<Navigate to="/where-am-i" replace />} />
           <Route path="/where-am-i" element={<WhereAmIPage />} />
           <Route path="/seasons" element={<SeasonsPage />} />
@@ -69,8 +85,6 @@ function App() {
           <Route path="/theme/:id/actions/:type" element={<ActionTableView />} />
           <Route path="/weekly" element={<Navigate to="/review" replace />} />
           <Route path="/review" element={<ReviewPage />} />
-          <Route path="/chat" element={<AgentChatPage />} />
-          <Route path="/chat/:sessionId" element={<AgentChatPage />} />
         </Route>
       </Routes>
     </div>

@@ -1,95 +1,174 @@
-// AppLayout - Shared layout wrapper with sidebar for all pages
-import { useState, ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useThemes, useGlobalVetoes, useActiveActions, useUpdateCard, useDeleteCard } from '../../hooks/useCards'
+// AppLayout - Shared chat-first shell with card navigation
+import { ReactNode, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import Card from 'react-bootstrap/Card'
+import Nav from 'react-bootstrap/Nav'
+import { useThemes } from '../../hooks/useCards'
 import { useActiveSeason } from '../../hooks/useSeasons'
-import { Sidebar } from './Sidebar'
-import { MobileNav } from './MobileNav'
-import { VetoEditModal } from '../VetoEditModal'
 import { AgentChat } from '../AgentChat'
-import type { Card } from '../../lib/api'
+import { MobileNav } from './MobileNav'
 import './Layout.css'
 
 interface AppLayoutProps {
   children: ReactNode
   onThemeClick?: (themeId: string) => void
+  showAgentChatWidget?: boolean
 }
 
-export function AppLayout({ children, onThemeClick }: AppLayoutProps) {
+interface NavLinkItem {
+  key: string
+  label: string
+  path: string
+}
+
+const SERVICE_LINKS: NavLinkItem[] = [
+  { key: 'service-home', label: 'Home', path: '/planner' },
+  { key: 'service-chat', label: 'Chat', path: '/' },
+  { key: 'service-review', label: 'Review', path: '/review' },
+]
+
+const SCENE_LINKS: NavLinkItem[] = [
+  { key: 'scene-themes', label: 'Themes', path: '/where-am-i' },
+  { key: 'scene-seasons', label: 'Seasons', path: '/seasons' },
+  { key: 'scene-settings', label: 'Settings', path: '/settings' },
+]
+
+function getActivePath(pathname: string, links: NavLinkItem[]): string | undefined {
+  if (pathname === '/' || pathname === '/chat' || pathname.startsWith('/chat/')) return '/'
+  return links.find((link) => pathname === link.path || pathname.startsWith(`${link.path}/`))?.path
+}
+
+export function AppLayout({ children, onThemeClick, showAgentChatWidget = true }: AppLayoutProps) {
   const navigate = useNavigate()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [editingVeto, setEditingVeto] = useState<Card | null>(null)
+  const location = useLocation()
 
   const { data: themes } = useThemes()
   const { data: activeSeason } = useActiveSeason()
-  const { data: globalVetoes } = useGlobalVetoes()
-  const { data: actions = [] } = useActiveActions()
+  const activeServicePath = getActivePath(location.pathname, SERVICE_LINKS)
+  const activeScenePath = getActivePath(location.pathname, SCENE_LINKS)
 
-  const updateCardMutation = useUpdateCard()
-  const deleteCardMutation = useDeleteCard()
+  const activeThemePath = useMemo(() => {
+    const match = location.pathname.match(/^\/theme\/([^/]+)/)
+    return match ? match[1] : undefined
+  }, [location.pathname])
 
-  const handleUpdateVeto = async (updates: { title: string; description?: string }) => {
-    if (!editingVeto) return
-    await updateCardMutation.mutateAsync({ id: editingVeto.id, data: updates })
-    setEditingVeto(null)
-  }
+  const seasonBadge = useMemo(() => {
+    if (!activeSeason) return null
 
-  const handleDeleteVeto = async () => {
-    if (!editingVeto) return
-    await deleteCardMutation.mutateAsync({ id: editingVeto.id })
-    setEditingVeto(null)
-  }
+    const startDate = new Date(activeSeason.startDate)
+    const now = new Date()
+    const elapsedDays = Math.max(
+      0,
+      Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)),
+    )
+    const durationWeeks = Math.max(activeSeason.durationWeeks || 1, 1)
+    const week = Math.min(durationWeeks, Math.floor(elapsedDays / 7) + 1)
+    const progress = Math.round((week / durationWeeks) * 100)
+
+    return {
+      name: activeSeason.name,
+      week,
+      durationWeeks,
+      progress: Math.max(0, Math.min(progress, 100)),
+    }
+  }, [activeSeason])
 
   return (
     <div className="kaizen-layout">
-      <Sidebar
-        season={activeSeason || null}
-        vetoes={globalVetoes || []}
-        themes={themes?.map(t => ({
-          id: t.id,
-          title: t.title,
-          actions: actions.filter(a => a.parentId === t.id),
-        })) || []}
-        themeCount={themes?.length || 0}
-        actionCount={actions?.length || 0}
-        onEditVeto={setEditingVeto}
-        onAddVeto={() => navigate('/create?type=VETO')}
-        onThemeClick={onThemeClick}
-        onMidSeasonGrade={() => {
-          if (activeSeason) {
-            navigate(`/seasons/${activeSeason.id}/grading?type=mid_season`)
-          }
-        }}
-        onEndSeasonGrade={() => {
-          if (activeSeason) {
-            navigate(`/seasons/${activeSeason.id}/grading?type=end_season`)
-          }
-        }}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
+      <MobileNav />
+      <header className="kaizen-card-nav-shell">
+        <div className="kaizen-card-nav-brand">
+          <span className="kaizen-card-nav-logo">K</span>
+          <div className="kaizen-card-nav-brand-copy">
+            <h1>Kaizen OS</h1>
+            <p>Chat-first command center</p>
+          </div>
+          {seasonBadge && (
+            <div className="kaizen-season-pill" title={seasonBadge.name}>
+              <span className="kaizen-season-pill-name">{seasonBadge.name}</span>
+              <span className="kaizen-season-pill-meta">
+                Week {seasonBadge.week}/{seasonBadge.durationWeeks}
+              </span>
+              <div className="kaizen-season-pill-bar">
+                <span style={{ width: `${seasonBadge.progress}%` }} />
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="kaizen-card-nav-grid">
+          <Card className="kaizen-nav-card">
+            <Card.Header>Services</Card.Header>
+            <Card.Body>
+              <Nav className="kaizen-nav-list" variant="pills" activeKey={activeServicePath}>
+                {SERVICE_LINKS.map((link) => (
+                  <Nav.Item key={link.key}>
+                    <Nav.Link eventKey={link.path} onClick={() => navigate(link.path)}>
+                      {link.label}
+                    </Nav.Link>
+                  </Nav.Item>
+                ))}
+              </Nav>
+            </Card.Body>
+          </Card>
+
+          <Card className="kaizen-nav-card">
+            <Card.Header>Themes</Card.Header>
+            <Card.Body>
+              {themes && themes.length > 0 ? (
+                <Nav className="kaizen-nav-list" variant="pills" activeKey={activeThemePath}>
+                  {themes.map((theme) => (
+                    <Nav.Item key={theme.id}>
+                      <Nav.Link
+                        eventKey={theme.id}
+                        onClick={() => {
+                          if (onThemeClick) {
+                            onThemeClick(theme.id)
+                            return
+                          }
+                          navigate(`/theme/${theme.id}`)
+                        }}
+                      >
+                        {theme.title}
+                      </Nav.Link>
+                    </Nav.Item>
+                  ))}
+                </Nav>
+              ) : (
+                <p className="kaizen-nav-empty">No themes yet</p>
+              )}
+            </Card.Body>
+          </Card>
+
+          <Card className="kaizen-nav-card">
+            <Card.Header>Scenes</Card.Header>
+            <Card.Body>
+              <Nav className="kaizen-nav-list" variant="pills" activeKey={activeScenePath}>
+                {SCENE_LINKS.map((link) => (
+                  <Nav.Item key={link.key}>
+                    <Nav.Link eventKey={link.path} onClick={() => navigate(link.path)}>
+                      {link.label}
+                    </Nav.Link>
+                  </Nav.Item>
+                ))}
+              </Nav>
+            </Card.Body>
+          </Card>
+        </div>
+      </header>
 
       <main className="kaizen-main">
-        <MobileNav />
         {children}
       </main>
 
-      <AgentChat
-        style={{
-          position: 'fixed',
-          bottom: '1.25rem',
-          left: '1.25rem',
-          right: 'auto',
-          zIndex: 50,
-        }}
-      />
-
-      {editingVeto && (
-        <VetoEditModal
-          veto={editingVeto}
-          onSave={handleUpdateVeto}
-          onDelete={handleDeleteVeto}
-          onClose={() => setEditingVeto(null)}
+      {showAgentChatWidget && (
+        <AgentChat
+          style={{
+            position: 'fixed',
+            bottom: '1.25rem',
+            left: '1.25rem',
+            right: 'auto',
+            zIndex: 50,
+          }}
         />
       )}
     </div>

@@ -1,16 +1,20 @@
 // MobileNav component - Top header bar for mobile
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import './Layout.css'
 
 const MENU_ITEMS = [
-  { label: 'Home', path: '/' },
+  { label: 'Home', path: '/planner' },
+  { label: 'Chat', path: '/' },
+  { label: 'Themes', path: '/where-am-i' },
+  { label: 'Seasons', path: '/seasons' },
   { label: 'Review', path: '/review' },
   { label: 'Settings', path: '/settings' },
 ]
 
 export function MobileNav() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLElement>(null)
 
@@ -28,9 +32,18 @@ export function MobileNav() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [menuOpen])
 
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
   const handleMenuItemClick = (path: string) => {
     navigate(path)
     setMenuOpen(false)
+  }
+
+  const isActivePath = (path: string) => {
+    if (path === '/') return location.pathname === '/' || location.pathname.startsWith('/chat/')
+    return location.pathname === path || location.pathname.startsWith(`${path}/`)
   }
 
   return (
@@ -51,7 +64,7 @@ export function MobileNav() {
           {MENU_ITEMS.map((item) => (
             <button
               key={item.path}
-              className="mobile-nav-item"
+              className={`mobile-nav-item ${isActivePath(item.path) ? 'active' : ''}`}
               onClick={() => handleMenuItemClick(item.path)}
             >
               {item.label}

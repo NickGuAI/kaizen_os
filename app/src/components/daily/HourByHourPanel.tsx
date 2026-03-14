@@ -10,6 +10,8 @@ export interface HourByHourPanelProps {
   currentBlock?: CalendarEvent | null
   loading?: boolean
   date: string // YYYY-MM-DD
+  top3Keys?: string[]
+  top3CardIds?: string[]
 }
 
 interface SlotLabel {
@@ -36,8 +38,21 @@ function timeToSlotIndex(hour: number, minute: number): number {
   return (hour - 7) * 2 + (minute >= 30 ? 1 : 0)
 }
 
-export function HourByHourPanel({ events, currentBlock, loading }: HourByHourPanelProps) {
+function buildEventWorkItemKey(event: CalendarEvent): string | undefined {
+  if (!event.accountId || !event.calendarId) return undefined
+  return `gcal:${event.accountId}:${event.calendarId}:${event.id}`
+}
+
+export function HourByHourPanel({
+  events,
+  currentBlock,
+  loading,
+  top3Keys = [],
+  top3CardIds = [],
+}: HourByHourPanelProps) {
   const slots = useMemo(() => generateSlots(), [])
+  const top3KeySet = useMemo(() => new Set(top3Keys), [top3Keys])
+  const top3CardIdSet = useMemo(() => new Set(top3CardIds), [top3CardIds])
 
   const sortedEvents = useMemo(() => {
     return [...events].sort((a, b) => {
@@ -78,6 +93,11 @@ export function HourByHourPanel({ events, currentBlock, loading }: HourByHourPan
                   {slotEvts.map(event => {
                     const themeColor = getThemeBorderColor(event.colorIndex)
                     const isCurrent = currentBlock?.id === event.id
+                    const eventKey = buildEventWorkItemKey(event)
+                    const isPriority =
+                      (eventKey && top3KeySet.has(eventKey)) ||
+                      (event.cardId && top3CardIdSet.has(event.cardId)) ||
+                      false
                     const evtStart = typeof event.start === 'string' ? parseISO(event.start) : event.start
                     const evtEnd = typeof event.end === 'string' ? parseISO(event.end) : event.end
                     const durationMinutes = Math.max(30, (evtEnd.getTime() - evtStart.getTime()) / 60000)
@@ -86,8 +106,8 @@ export function HourByHourPanel({ events, currentBlock, loading }: HourByHourPan
                     return (
                       <div
                         key={event.id}
-                        className={`hour-event ${isCurrent ? 'current' : ''}`}
-                        style={{ borderLeftColor: themeColor, minHeight: eventMinHeight }}
+                        className={`hour-event ${isCurrent ? 'current' : ''} ${isPriority ? 'priority-highlight' : ''}`}
+                        style={{ borderLeftColor: isPriority ? '#D4AF37' : themeColor, minHeight: eventMinHeight }}
                         title={event.title}
                       >
                         <span className="hour-event-title">{event.title}</span>
