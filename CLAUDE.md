@@ -112,6 +112,13 @@ return taskDueDate >= startDate && taskDueDate <= endDate;
 - Convert Luxon DateTime to JS Date with `.toJSDate()` for Prisma queries
 - Day boundaries depend on timezone - Jan 23 midnight in Pacific is Jan 23 08:00 UTC
 
+### AppLayout Scroll — Every Page Must Have Scroll Wrapper
+- **AppLayout** (`kaizen-main`) uses `overflow: hidden` and `height: 100vh` — content that overflows is clipped, no scroll.
+- **Every page** wrapped in `<AppLayout>` whose content can exceed viewport height **MUST** use a scroll wrapper on its top-level child div.
+- **Required styles**: `flex: 1`, `minHeight: 0`, `overflowY: 'auto'` — all three. `minHeight: 0` is critical: without it, flex children won't shrink and overflow won't trigger scroll.
+- **Pattern**: `<AppLayout><div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '...' }}>...</div></AppLayout>`
+- **Checklist when adding/editing pages**: Settings, Settings/rules, Seasons, Seasons/:id, Theme/:id, etc. — if it uses AppLayout and has scrollable content, add the wrapper.
+
 ### Calendar Push Notifications: Watch Channels Only (No Pub/Sub)
 - **Google Workspace Events API does NOT support Google Calendar** — only Chat, Drive, Meet
 - `calendar-api-push@system.gserviceaccount.com` does not exist; Pub/Sub IAM binding for Calendar will always fail

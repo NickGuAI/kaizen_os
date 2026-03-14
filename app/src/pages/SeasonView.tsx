@@ -139,7 +139,7 @@ export default function SeasonView() {
 
   return (
     <AppLayout>
-      <div style={{ padding: '16px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
         {/* Page Header */}
         <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
           <button

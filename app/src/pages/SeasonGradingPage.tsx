@@ -165,7 +165,7 @@ export default function SeasonGradingPage() {
 
   if (!activeGradingType) {
     return (
-      <AppLayout><div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+      <AppLayout><div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 32 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <button onClick={() => navigate(`/seasons/${seasonId}`)} className="back-button" style={{
             display: 'flex', alignItems: 'center', gap: 8, background: 'white',
@@ -204,7 +204,7 @@ export default function SeasonGradingPage() {
 
   if (gradableActions.length === 0) {
     return (
-      <AppLayout><div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+      <AppLayout><div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 32 }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           <button onClick={() => navigate(-1)} className="back-button" style={{
             display: 'flex', alignItems: 'center', gap: 8, background: 'white',
@@ -234,7 +234,7 @@ export default function SeasonGradingPage() {
   }
 
   return (
-    <AppLayout><div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+    <AppLayout><div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 32 }}>
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>

@@ -187,7 +187,7 @@ export default function ClassificationRulesPage() {
   }
 
   return (
-    <AppLayout><div style={{ flex: 1, overflowY: 'auto' }}>
+    <AppLayout><div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button

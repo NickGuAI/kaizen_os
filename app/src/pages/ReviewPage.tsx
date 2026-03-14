@@ -63,7 +63,7 @@ export default function ReviewPage() {
 
   return (
     <AppLayout>
-      <div style={{ height: '100%', overflowY: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <div style={{ padding: '16px' }}>
         {/* Header */}
         <div

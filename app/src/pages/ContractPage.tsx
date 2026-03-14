@@ -109,7 +109,7 @@ export default function ContractPage() {
 
   return (
     <AppLayout>
-      <div className="contract-container">
+      <div className="contract-container" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {/* Header */}
         <div style={{ marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button

@@ -49,7 +49,7 @@ export default function SeasonsPage() {
 
   return (
     <AppLayout>
-      <div style={{ padding: 'var(--space-6)', maxWidth: '900px', margin: '0 auto', overflowY: 'auto', flex: 1 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'var(--space-6)', maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
           <h1 className="text-2xl font-semibold">Seasons</h1>
           <Button variant="primary" onClick={() => navigate('/seasons/new')}>
