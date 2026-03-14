@@ -1,0 +1,140 @@
+.public-landing {
+  --landing-sage: #8b9467;
+  --landing-ink: #f5f1eb;
+  --landing-muted: rgba(245, 241, 235, 0.72);
+  --landing-panel: rgba(16, 23, 16, 0.6);
+  --landing-border: rgba(139, 148, 103, 0.34);
+  --landing-focus: #9da575;
+
+  position: relative;
+  min-height: 100vh;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 14%, rgba(139, 148, 103, 0.2), transparent 46%),
+    radial-gradient(circle at 84% 16%, rgba(157, 165, 117, 0.18), transparent 42%),
+    linear-gradient(150deg, #0a0f0a 0%, #0d120d 60%, #0f1510 100%);
+}
+
+.public-landing__rays,
+.public-landing__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.public-landing__rays {
+  z-index: 0;
+  opacity: 0.95;
+}
+
+.public-landing__overlay {
+  z-index: 1;
+  background:
+    radial-gradient(circle at 50% 36%, rgba(245, 241, 235, 0.08), transparent 58%),
+    linear-gradient(180deg, rgba(10, 15, 10, 0.18) 0%, rgba(10, 15, 10, 0.66) 100%);
+}
+
+.public-landing__hero {
+  position: relative;
+  z-index: 2;
+  width: min(760px, 100%);
+  text-align: center;
+  color: var(--landing-ink);
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: 28px;
+  padding: clamp(2rem, 5vw, 3.4rem) clamp(1.2rem, 5vw, 3.4rem);
+  box-shadow: 0 36px 100px rgba(7, 14, 11, 0.5);
+  backdrop-filter: blur(10px);
+}
+
+.public-landing__kicker {
+  margin: 0;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.public-landing__headline {
+  margin: 1.15rem auto 1rem;
+  max-width: 18ch;
+  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: clamp(2rem, 5.5vw, 4.2rem);
+  line-height: 1.06;
+  letter-spacing: 0.015em;
+  text-wrap: balance;
+}
+
+.public-landing__subhead {
+  margin: 0 auto;
+  max-width: 45ch;
+  color: var(--landing-muted);
+  font-size: clamp(1rem, 2.1vw, 1.2rem);
+  line-height: 1.55;
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.public-landing__cta {
+  margin-top: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.86rem 1.7rem;
+  min-width: 11.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 148, 103, 0.55);
+  background: linear-gradient(135deg, var(--landing-sage), #9da575);
+  color: #f5f1eb;
+  text-decoration: none;
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.public-landing__cta:hover {
+  transform: translateY(-2px);
+  border-color: rgba(157, 165, 117, 0.9);
+  background: linear-gradient(135deg, #9da575, #a8b07f);
+}
+
+.public-landing__cta:focus-visible {
+  outline: 2px solid var(--landing-focus);
+  outline-offset: 4px;
+}
+
+@media (max-width: 720px) {
+  .public-landing__hero {
+    border-radius: 20px;
+    padding: 1.8rem 1.1rem 2rem;
+  }
+
+  .public-landing__headline {
+    margin-top: 0.95rem;
+    max-width: 17ch;
+  }
+
+  .public-landing__subhead {
+    max-width: 32ch;
+  }
+
+  .public-landing__cta {
+    width: 100%;
+    max-width: 20rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-landing__cta {
+    transition: none;
+  }
+
+  .public-landing__cta:hover {
+    transform: none;
+  }
+}

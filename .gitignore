@@ -1,0 +1,14 @@
+node_modules
+# Keep environment variables out of version control
+.env
+.env.test
+.env.prod
+.env.local
+.env*.local
+# Keep .env.example for reference
+!.env.example
+/data/
+/generated/prisma
+# Secrets and local DB
+.secrets/
+prisma/dev.db
