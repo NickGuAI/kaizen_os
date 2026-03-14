@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { google } from 'googleapis';
 import { startOfWeek } from 'date-fns';
 import { DateTime } from 'luxon';
@@ -7,8 +8,13 @@ import { encryptToken, decryptToken } from '../../lib/crypto';
 import { isValidUuid } from '../../lib/validation';
 import { getOAuth2Client } from '../../services/calendar/tokenService';
 import { getWeekEventsWithCache } from '../../services/calendar/eventCacheService';
-import { setupSubscriptionsForAccount, deleteAllSubscriptionsForAccount } from '../../services/calendar/calendarSubscriptionService';
+import {
+  setupSubscriptionsForAccount,
+  deleteAllSubscriptionsForAccount,
+  reconcileSubscriptionsForAccount,
+} from '../../services/calendar/calendarSubscriptionService';
 import { upsertCalendarEvents } from '../../services/calendar/calendarEventUpsertService';
+import { syncSubscriptionIncremental } from '../cron/calendarPoller';
 
 const router = Router();
 
@@ -572,11 +578,127 @@ const SCOPES = [
   'https://www.googleapis.com/auth/tasks',
 ];
 
+interface OAuthStateData {
+  userId: string;
+  redirect?: string;
+  nativeCallback?: string;
+  nativeFlow?: boolean;
+  issuedAt?: number;
+  redirectUri?: string;
+}
+
 // Validate redirect URL is a safe same-origin path
 function isValidRedirectPath(redirect: string | undefined): boolean {
   if (!redirect) return false;
   // Must start with / and not contain protocol or double slashes (prevent //evil.com)
   return redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.includes(':');
+}
+
+function isNativeFlowRequested(nativeParam: unknown): boolean {
+  if (typeof nativeParam !== 'string') return false;
+  return nativeParam === '1' || nativeParam.toLowerCase() === 'true';
+}
+
+function isValidNativeCallbackUri(uri: string | undefined): boolean {
+  if (!uri) return false;
+
+  try {
+    const parsed = new URL(uri);
+    if (parsed.protocol === 'javascript:' || parsed.protocol === 'data:') {
+      return false;
+    }
+
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      const appBaseUrl = process.env.APP_BASE_URL;
+      if (!appBaseUrl) return false;
+      return parsed.origin === new URL(appBaseUrl).origin;
+    }
+
+    return /^[a-z][a-z0-9+.-]*:$/.test(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function appendQuery(urlOrPath: string, key: string, value: string): string {
+  if (urlOrPath.startsWith('/')) {
+    return `${urlOrPath}${urlOrPath.includes('?') ? '&' : '?'}${key}=${encodeURIComponent(value)}`;
+  }
+
+  try {
+    const parsed = new URL(urlOrPath);
+    parsed.searchParams.set(key, value);
+    return parsed.toString();
+  } catch {
+    return urlOrPath;
+  }
+}
+
+function getDefaultNativeRedirectUri(): string | undefined {
+  const appBaseUrl = process.env.APP_BASE_URL;
+  if (!appBaseUrl) return undefined;
+  const normalized = appBaseUrl.endsWith('/') ? appBaseUrl.slice(0, -1) : appBaseUrl;
+  return `${normalized}/api/calendar/push/google/callback`;
+}
+
+function getOAuthStateSecret(): string | null {
+  return (
+    process.env.GOOGLE_OAUTH_STATE_SECRET ||
+    process.env.SESSION_SECRET ||
+    process.env.GOOGLE_CLIENT_SECRET ||
+    null
+  );
+}
+
+function encodeOAuthState(payload: OAuthStateData): string {
+  const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf-8').toString('base64url');
+  const secret = getOAuthStateSecret();
+
+  if (!secret) return encodedPayload;
+
+  const signature = createHmac('sha256', secret).update(encodedPayload).digest('base64url');
+  return `${encodedPayload}.${signature}`;
+}
+
+function decodeOAuthState(stateValue: string | undefined): OAuthStateData | null {
+  if (!stateValue) return null;
+
+  const [payload, signature] = stateValue.split('.');
+  if (payload && signature) {
+    const secret = getOAuthStateSecret();
+    if (secret) {
+      const expected = createHmac('sha256', secret).update(payload).digest('base64url');
+      const matches =
+        expected.length === signature.length &&
+        timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+      if (matches) {
+        try {
+          const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8')) as OAuthStateData;
+          if (!parsed.userId) return null;
+
+          if (parsed.issuedAt) {
+            const ageMs = Date.now() - parsed.issuedAt;
+            if (ageMs < 0 || ageMs > 15 * 60 * 1000) {
+              return null;
+            }
+          }
+
+          return parsed;
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+  }
+
+  try {
+    const parsed = JSON.parse(Buffer.from(stateValue, 'base64').toString()) as OAuthStateData;
+    if (!parsed.userId) return null;
+    return parsed;
+  } catch {
+    return { userId: stateValue };
+  }
 }
 
 // GET /api/calendar/google/authorize
@@ -591,13 +713,29 @@ router.get('/google/authorize', (req: Request, res: Response) => {
 
   const userId = req.user.id;
   const redirectParam = req.query.redirect as string | undefined;
+  const nativeFlow = isNativeFlowRequested(req.query.native);
+  const nativeCallbackParam = req.query.nativeCallback as string | undefined;
+
+  if (nativeFlow && !getOAuthStateSecret()) {
+    return res.status(503).json({ error: 'OAuth state secret is not configured' });
+  }
 
   // Only allow valid same-origin paths, default to /settings
   const redirectUrl = isValidRedirectPath(redirectParam) ? redirectParam : undefined;
+  const nativeCallback = isValidNativeCallbackUri(nativeCallbackParam) ? nativeCallbackParam : undefined;
+  const redirectUri = nativeFlow
+    ? process.env.GOOGLE_NATIVE_REDIRECT_URI || getDefaultNativeRedirectUri() || process.env.GOOGLE_REDIRECT_URI
+    : undefined;
 
-  // Encode userId and optional redirect URL in state
-  const stateData = { userId, redirect: redirectUrl };
-  const stateEncoded = Buffer.from(JSON.stringify(stateData)).toString('base64');
+  const stateData: OAuthStateData = {
+    userId,
+    redirect: redirectUrl,
+    nativeCallback,
+    nativeFlow,
+    issuedAt: Date.now(),
+    ...(redirectUri ? { redirectUri } : {}),
+  };
+  const stateEncoded = encodeOAuthState(stateData);
 
   const oauth2Client = getOAuth2Client();
   const url = oauth2Client.generateAuthUrl({
@@ -605,9 +743,15 @@ router.get('/google/authorize', (req: Request, res: Response) => {
     scope: SCOPES,
     prompt: 'consent',
     state: stateEncoded,
-  });
-  if (req.query.format === 'json') {
-    return res.json({ url });
+    ...(redirectUri ? { redirect_uri: redirectUri } : {}),
+  } as any);
+
+  if (req.query.format === 'json' || nativeFlow) {
+    return res.json({
+      url,
+      nativeFlow,
+      ...(redirectUri ? { redirectUri } : {}),
+    });
   }
   res.redirect(url);
 });
@@ -630,27 +774,33 @@ router.get('/google/callback', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Missing code' });
   }
 
-  // Decode state to get userId and redirect URL
-  let stateData: { userId: string; redirect?: string } | null = null;
-  try {
-    stateData = JSON.parse(Buffer.from(stateValue as string, 'base64').toString());
-  } catch {
-    // Fallback for old format (just userId string)
-    stateData = { userId: stateValue as string };
-  }
+  const stateData = decodeOAuthState(typeof stateValue === 'string' ? stateValue : undefined);
 
   if (!stateData || stateData.userId !== userId) {
     return res.status(400).json({ error: 'Invalid OAuth state' });
   }
 
   // Determine redirect destination (default to /settings)
-  const redirectTo = stateData.redirect || '/settings';
-  const successUrl = `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}connected=true`;
-  const errorUrl = `${redirectTo}${redirectTo.includes('?') ? '&' : '?'}error=auth_failed`;
+  const redirectTo = isValidRedirectPath(stateData.redirect) ? stateData.redirect! : '/settings';
+  const nativeCallback = isValidNativeCallbackUri(stateData.nativeCallback)
+    ? stateData.nativeCallback
+    : undefined;
+  const successBase = stateData.nativeFlow && nativeCallback ? nativeCallback : redirectTo;
+  const errorBase = stateData.nativeFlow && nativeCallback ? nativeCallback : redirectTo;
+
+  const successUrl = appendQuery(
+    appendQuery(successBase, 'connected', 'true'),
+    'native',
+    stateData.nativeFlow ? '1' : '0'
+  );
+  const errorUrl = appendQuery(errorBase, 'error', 'auth_failed');
 
   try {
     const oauth2Client = getOAuth2Client();
-    const { tokens } = await oauth2Client.getToken(code as string);
+    const { tokens } = await oauth2Client.getToken({
+      code: code as string,
+      ...(stateData.redirectUri ? { redirect_uri: stateData.redirectUri } : {}),
+    });
 
     if (!tokens.access_token || !tokens.refresh_token) {
       throw new Error('Missing tokens in response');
@@ -839,6 +989,13 @@ router.put('/accounts/:id/preferences', async (req: Request, res: Response) => {
         selectedTaskListId: true,
       },
     });
+
+    if (selectedCalendarIds !== undefined) {
+      await reconcileSubscriptionsForAccount(userId, accountId, account.selectedCalendarIds).catch((err) => {
+        console.error('[calendar/preferences] Failed to reconcile calendar subscriptions:', err);
+      });
+    }
+
     res.json(account);
   } catch (_error) {
     res.status(404).json({ error: 'Account not found' });
@@ -1591,7 +1748,57 @@ router.post('/events/batch-update', async (req: Request, res: Response) => {
 // Calendar Sync Endpoint
 // ============================================
 
-// POST /api/calendar/sync - Sync calendar events for the current/next week
+// GET /api/calendar/sync/status - Auto-sync freshness/health for UI + operations
+router.get('/sync/status', async (req: Request, res: Response) => {
+  const userId = req.user!.id;
+
+  try {
+    const subscriptions = await prisma.calendarWorkspaceSubscription.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        state: true,
+        expiration: true,
+        lastNotificationAt: true,
+        lastSyncedAt: true,
+        lastError: true,
+        updatedAt: true,
+      },
+    });
+
+    const now = new Date();
+
+    const staleCount = subscriptions.filter((sub) => {
+      if (sub.state !== 'active') return true;
+      if (sub.expiration <= now) return true;
+      return false;
+    }).length;
+
+    const healthyCount = subscriptions.length - staleCount;
+    const lastUpdatedAt =
+      subscriptions
+        .map((sub) => sub.lastSyncedAt || sub.updatedAt)
+        .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+
+    return res.json({
+      mode: 'webhook_primary',
+      totalSubscriptions: subscriptions.length,
+      healthySubscriptions: healthyCount,
+      staleSubscriptions: staleCount,
+      fallbackPollingEnabled: true,
+      lastUpdatedAt: lastUpdatedAt ? lastUpdatedAt.toISOString() : null,
+      lastErrors: subscriptions
+        .filter((sub) => Boolean(sub.lastError))
+        .map((sub) => sub.lastError)
+        .slice(0, 5),
+    });
+  } catch (error) {
+    console.error('[calendar/sync/status] Failed to load sync status:', error);
+    return res.status(500).json({ error: 'Failed to load sync status' });
+  }
+});
+
+// POST /api/calendar/sync - Explicit repair endpoint (fallback, not primary freshness)
 router.post('/sync', async (req: Request, res: Response) => {
   const userId = req.user!.id;
 
@@ -1609,6 +1816,25 @@ router.post('/sync', async (req: Request, res: Response) => {
       });
     }
 
+    const subscriptions = await prisma.calendarWorkspaceSubscription.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        userId: true,
+        accountId: true,
+        calendarId: true,
+        syncToken: true,
+      },
+    });
+
+    let channelsRepaired = 0;
+    if (subscriptions.length > 0) {
+      const results = await Promise.allSettled(
+        subscriptions.map((sub) => syncSubscriptionIncremental(sub))
+      );
+      channelsRepaired = results.filter((result) => result.status === 'fulfilled').length;
+    }
+
     // Calculate week start if not provided
     let weekStart = requestedWeekStart;
     if (!weekStart) {
@@ -1618,13 +1844,17 @@ router.post('/sync', async (req: Request, res: Response) => {
       weekStart = weekStartDate.toISOString().split('T')[0];
     }
 
-    // Use getWeekEventsWithCache with forceRefresh to sync and cache events
-    const events = await getWeekEventsWithCache(userId, weekStart, { forceRefresh: true });
+    // Return a current week snapshot after repair run.
+    const events = await getWeekEventsWithCache(userId, weekStart, {
+      forceRefresh: subscriptions.length === 0,
+    });
 
     res.json({ 
       success: true, 
-      message: `Synced ${events.length} events from ${accounts.length} account(s)`,
-      eventsSynced: events.length 
+      message: `Repair sync completed for ${accounts.length} account(s)`,
+      eventsSynced: events.length,
+      channelsRepaired,
+      channelsTotal: subscriptions.length,
     });
   } catch (error) {
     console.error('Calendar sync error:', error);

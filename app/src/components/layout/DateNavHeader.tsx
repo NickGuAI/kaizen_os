@@ -13,8 +13,9 @@ interface DateNavHeaderProps {
   tagMode?: boolean
   onPlanModeToggle?: (enabled: boolean) => void
   onTagModeToggle?: (enabled: boolean) => void
-  onSync?: () => void
-  syncing?: boolean
+  onRepairSync?: () => void
+  repairing?: boolean
+  syncStatusLabel?: string
   isPlanSubmitted?: boolean
 }
 
@@ -27,8 +28,9 @@ export function DateNavHeader({
   tagMode = false,
   onPlanModeToggle,
   onTagModeToggle,
-  onSync,
-  syncing = false,
+  onRepairSync,
+  repairing = false,
+  syncStatusLabel,
   isPlanSubmitted = false,
 }: DateNavHeaderProps) {
   const navigate = useNavigate()
@@ -108,19 +110,24 @@ export function DateNavHeader({
         <div className="header-actions">
           {!planMode && !tagMode && (
             <>
+              {syncStatusLabel && (
+                <span className="header-action-btn review" role="status" aria-live="polite">
+                  {syncStatusLabel}
+                </span>
+              )}
               <button
                 className="header-action-btn tag"
                 onClick={() => onTagModeToggle?.(true)}
               >
                 🏷️ Tag
               </button>
-              {onSync && (
+              {onRepairSync && (
                 <button
                   className="header-action-btn sync"
-                  onClick={onSync}
-                  disabled={syncing}
+                  onClick={onRepairSync}
+                  disabled={repairing}
                 >
-                  {syncing ? '⏳' : '🔄'} {syncing ? 'Syncing...' : 'Sync'}
+                  {repairing ? '⏳' : '🛠️'} {repairing ? 'Repairing...' : 'Repair Sync'}
                 </button>
               )}
               <button
