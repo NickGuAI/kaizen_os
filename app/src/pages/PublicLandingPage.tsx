@@ -62,7 +62,7 @@ export default function PublicLandingPage() {
             <ShapeBlur
               cornerRadius={28}
               borderSize={0.012}
-              circleSize={0.25}
+              circleSize={0.5}
               circleEdge={0.2}
             />
           </div>
