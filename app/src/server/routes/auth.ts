@@ -342,6 +342,7 @@ router.post('/auto-connect-calendar', requireAuthV2, async (req: Request, res: R
         email: googleEmail,
         accessTokenEncrypted: encryptToken(providerToken),
         refreshTokenEncrypted: providerRefreshToken ? encryptToken(providerRefreshToken) : '',
+        expiresAt: new Date(Date.now() + 3600 * 1000),
         scopes: SCOPES,
       },
     })
