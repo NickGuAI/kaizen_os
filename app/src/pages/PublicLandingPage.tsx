@@ -14,10 +14,19 @@ export default function PublicLandingPage() {
     }
 
     syncPreference()
-    mediaQuery.addEventListener('change', syncPreference)
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncPreference)
+    } else {
+      mediaQuery.addListener(syncPreference)
+    }
 
     return () => {
-      mediaQuery.removeEventListener('change', syncPreference)
+      if (typeof mediaQuery.removeEventListener === 'function') {
+        mediaQuery.removeEventListener('change', syncPreference)
+      } else {
+        mediaQuery.removeListener(syncPreference)
+      }
     }
   }, [])
 
@@ -27,17 +36,17 @@ export default function PublicLandingPage() {
         {!prefersReducedMotion && (
           <LightRays
             raysOrigin="top-center"
-            raysColor="#d7e8d9"
-            raysSpeed={0.8}
-            lightSpread={0.95}
-            rayLength={1.85}
+            raysColor="#8B9467"
+            raysSpeed={0.4}
+            lightSpread={1.5}
+            rayLength={2.5}
             pulsating
-            fadeDistance={1}
-            saturation={1}
+            fadeDistance={1.2}
+            saturation={0.7}
             followMouse
-            mouseInfluence={0.06}
-            noiseAmount={0.03}
-            distortion={0.04}
+            mouseInfluence={0.08}
+            noiseAmount={0.05}
+            distortion={0}
           />
         )}
       </div>
@@ -45,7 +54,7 @@ export default function PublicLandingPage() {
 
       <section className="public-landing__hero">
         <p className="public-landing__kicker">
-          <ShinyText text="Kaizen OS" speed={4} color="#cad6c5" shineColor="#ffffff" />
+          <ShinyText text="Kaizen OS" speed={4} color="#8B9467" shineColor="#f5f1eb" />
         </p>
         <h1 className="public-landing__headline">Improve the day, and life improves itself.</h1>
         <p className="public-landing__subhead">
