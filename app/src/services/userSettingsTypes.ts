@@ -36,6 +36,7 @@ export interface UserSettings {
   planningDay: number
   // Onboarding progress
   onboarding_progress: OnboardingProgress
+  onboarding_identity?: OnboardingIdentity
 }
 
 export type OnboardingStepStatus = 'pending' | 'completed' | 'skipped'
@@ -49,6 +50,25 @@ export interface OnboardingProgress {
   currentStep: number
   completedAt: string | null
   steps: Record<string, OnboardingStepData>
+}
+
+export interface OnboardingIdentity {
+  seed: {
+    coreIdentity: string
+    startingPoint: string
+    narrative: string
+  }
+  student: {
+    becoming: string
+    horizon: string
+    narrative: string
+  }
+  gaze: {
+    desires: string
+    reflection: string
+    nonNegotiables: string[]
+  }
+  kaizenExperiment?: Record<string, unknown>
 }
 
 // All available kaizen-db MCP tools

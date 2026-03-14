@@ -1,33 +1,8 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Input, Select, Textarea } from '../ui'
 import { Stepper, StepperStep } from '../ui/Stepper'
 import { useOnboarding } from './hooks/useOnboarding'
-import { ConnectStep } from './steps'
-
-function ValidationList({ errors }: { errors: string[] }) {
-  if (errors.length === 0) {
-    return null
-  }
-
-  return (
-    <div
-      style={{
-        marginTop: 'var(--space-3)',
-        padding: 'var(--space-3)',
-        borderRadius: 10,
-        background: 'rgba(220, 38, 38, 0.08)',
-        border: '1px solid rgba(220, 38, 38, 0.2)',
-      }}
-    >
-      {errors.map((error) => (
-        <p key={error} style={{ margin: 0, fontSize: 13, color: 'var(--color-critical)' }}>
-          {error}
-        </p>
-      ))}
-    </div>
-  )
-}
+import { ConnectStep, GazeStep, SeedStep, StudentStep } from './steps'
 
 export function OnboardingWizard() {
   const navigate = useNavigate()
@@ -78,28 +53,11 @@ export function OnboardingWizard() {
         title: 'Define the Seed',
         description: 'Write your starting point and core identity in enough depth to be useful.',
         content: (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <Input
-              label="Core identity"
-              placeholder="Who are you right now at your core?"
-              value={state.data.seed.coreIdentity}
-              onChange={(event) => updateSeed({ ...state.data.seed, coreIdentity: event.target.value })}
-            />
-            <Input
-              label="Starting point"
-              placeholder="What context or season are you starting from?"
-              value={state.data.seed.startingPoint}
-              onChange={(event) => updateSeed({ ...state.data.seed, startingPoint: event.target.value })}
-            />
-            <Textarea
-              label="Narrative"
-              placeholder="Describe your current reality, constraints, and why this chapter matters now."
-              rows={8}
-              value={state.data.seed.narrative}
-              onChange={(event) => updateSeed({ ...state.data.seed, narrative: event.target.value })}
-            />
-            <ValidationList errors={state.data.stepValidation.seed.errors} />
-          </div>
+          <SeedStep
+            value={state.data.seed}
+            errors={state.data.stepValidation.seed.errors}
+            onChange={updateSeed}
+          />
         ),
       },
       {
@@ -107,34 +65,11 @@ export function OnboardingWizard() {
         title: 'Define the Student',
         description: 'Describe the person you are becoming, with a clear horizon and practical stakes.',
         content: (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <Input
-              label="Who are you becoming"
-              placeholder="State the identity you are building toward."
-              value={state.data.student.becoming}
-              onChange={(event) => updateStudent({ ...state.data.student, becoming: event.target.value })}
-            />
-            <Select
-              label="Horizon"
-              value={state.data.student.horizon}
-              onChange={(event) => updateStudent({ ...state.data.student, horizon: event.target.value })}
-              options={[
-                { value: '', label: 'Select horizon' },
-                { value: '90_days', label: '90 days' },
-                { value: '1_year', label: '1 year' },
-                { value: '3_year', label: '3 years' },
-                { value: '5_year', label: '5 years' },
-              ]}
-            />
-            <Textarea
-              label="Narrative"
-              placeholder="Explain what skills, habits, and standards this future self requires."
-              rows={8}
-              value={state.data.student.narrative}
-              onChange={(event) => updateStudent({ ...state.data.student, narrative: event.target.value })}
-            />
-            <ValidationList errors={state.data.stepValidation.student.errors} />
-          </div>
+          <StudentStep
+            value={state.data.student}
+            errors={state.data.stepValidation.student.errors}
+            onChange={updateStudent}
+          />
         ),
       },
       {
@@ -142,60 +77,15 @@ export function OnboardingWizard() {
         title: 'Define the Gaze',
         description: 'Reflect deeply on your desires and tensions. This drives synthesis of your Kaizen Experiment.',
         content: (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <Textarea
-              label="Desires"
-              placeholder="Write what you want, why you want it, and what must become true."
-              rows={8}
-              value={state.data.gaze.desires}
-              onChange={(event) => updateGaze({ ...state.data.gaze, desires: event.target.value })}
-            />
-            <Textarea
-              label="Reflection"
-              placeholder="Reflect on tradeoffs, fear, resistance, and what you are willing to commit to."
-              rows={8}
-              value={state.data.gaze.reflection}
-              onChange={(event) => updateGaze({ ...state.data.gaze, reflection: event.target.value })}
-            />
-            <ValidationList errors={state.data.stepValidation.gaze.errors} />
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
-              <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                Synthesis is required before final completion.
-              </p>
-              <Button
-                variant="secondary"
-                onClick={synthesizeExperiment}
-                disabled={!canSynthesize || state.isSynthesizing}
-              >
-                {state.isSynthesizing ? 'Synthesizing...' : 'Synthesize Kaizen Experiment'}
-              </Button>
-            </div>
-
-            {state.data.kaizenExperiment ? (
-              <div
-                style={{
-                  border: '1px solid var(--color-sage-border-light)',
-                  borderRadius: 12,
-                  background: 'var(--color-bg)',
-                  padding: 'var(--space-4)',
-                }}
-              >
-                <h3 style={{ margin: 0, fontSize: 16, color: 'var(--color-text-primary)' }}>Kaizen Experiment Draft</h3>
-                <pre
-                  style={{
-                    margin: 'var(--space-3) 0 0',
-                    fontSize: 12,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    color: 'var(--color-text-secondary)',
-                  }}
-                >
-                  {JSON.stringify(state.data.kaizenExperiment, null, 2)}
-                </pre>
-              </div>
-            ) : null}
-          </div>
+          <GazeStep
+            value={state.data.gaze}
+            errors={state.data.stepValidation.gaze.errors}
+            canSynthesize={canSynthesize}
+            isSynthesizing={state.isSynthesizing}
+            kaizenExperiment={state.data.kaizenExperiment}
+            onChange={updateGaze}
+            onSynthesize={synthesizeExperiment}
+          />
         ),
       },
     ],

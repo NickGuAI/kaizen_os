@@ -117,6 +117,9 @@ export interface UseOnboardingReturn {
   updateSeed: (seed: SeedData) => void
   updateStudent: (student: StudentData) => void
   updateGaze: (gaze: GazeData) => void
+  saveSeedData: (seed: SeedData) => Promise<void>
+  saveStudentData: (student: StudentData) => Promise<void>
+  saveGazeData: (gaze: GazeData) => Promise<void>
   refreshState: () => Promise<void>
   refreshConnectStatus: () => Promise<void>
   startConnection: (provider?: Provider) => Promise<void>
@@ -308,9 +311,6 @@ async function getOnboardingState(): Promise<OnboardingState> {
 async function saveOnboardingState(
   patch: Partial<{
     currentStep: number
-    seed: SeedData
-    student: StudentData
-    gaze: GazeData
     provider: Provider
   }>
 ): Promise<OnboardingState> {
@@ -328,6 +328,30 @@ async function saveOnboardingState(
   }
 
   return normalizeOnboardingState(await response.json())
+}
+
+type IdentitySection = 'seed' | 'student' | 'gaze'
+type IdentityPayload = SeedData | StudentData | GazeData
+
+async function saveOnboardingIdentity(section: IdentitySection, data: IdentityPayload): Promise<OnboardingState> {
+  const response = await apiFetch('/api/onboarding/identity', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      section,
+      data,
+    }),
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(typeof payload.error === 'string' ? payload.error : `Failed to save ${section} section`)
+  }
+
+  const payload = toObject(await response.json())
+  return normalizeOnboardingState(payload.state)
 }
 
 export function canAdvanceToStep(maxAllowedStep: number, requestedStep: number): boolean {
@@ -370,9 +394,6 @@ export function useOnboarding(): UseOnboardingReturn {
     async (
       patch: Partial<{
         currentStep: number
-        seed: SeedData
-        student: StudentData
-        gaze: GazeData
         provider: Provider
       }>
     ) => {
@@ -392,7 +413,27 @@ export function useOnboarding(): UseOnboardingReturn {
     [mergeState]
   )
 
-  const debouncedSave = useDebouncedCallback(savePatch, 450)
+  const saveIdentitySection = useCallback(
+    async (section: IdentitySection, data: IdentityPayload) => {
+      mergeState((previous) => ({ ...previous, isSaving: true, error: null }))
+
+      try {
+        const nextState = await saveOnboardingIdentity(section, data)
+        mergeState((previous) => ({ ...previous, isSaving: false, data: nextState }))
+      } catch (err) {
+        mergeState((previous) => ({
+          ...previous,
+          isSaving: false,
+          error: err instanceof Error ? err.message : `Failed to save ${section} section`,
+        }))
+      }
+    },
+    [mergeState]
+  )
+
+  const debouncedSaveSeed = useDebouncedCallback((seed: SeedData) => saveIdentitySection('seed', seed), 450)
+  const debouncedSaveStudent = useDebouncedCallback((student: StudentData) => saveIdentitySection('student', student), 450)
+  const debouncedSaveGaze = useDebouncedCallback((gaze: GazeData) => saveIdentitySection('gaze', gaze), 450)
 
   const setCurrentStep = useCallback(
     async (step: number) => {
@@ -411,9 +452,9 @@ export function useOnboarding(): UseOnboardingReturn {
           seed,
         },
       }))
-      debouncedSave({ seed })
+      debouncedSaveSeed(seed)
     },
-    [debouncedSave, mergeState]
+    [debouncedSaveSeed, mergeState]
   )
 
   const updateStudent = useCallback(
@@ -425,9 +466,9 @@ export function useOnboarding(): UseOnboardingReturn {
           student,
         },
       }))
-      debouncedSave({ student })
+      debouncedSaveStudent(student)
     },
-    [debouncedSave, mergeState]
+    [debouncedSaveStudent, mergeState]
   )
 
   const updateGaze = useCallback(
@@ -439,9 +480,30 @@ export function useOnboarding(): UseOnboardingReturn {
           gaze,
         },
       }))
-      debouncedSave({ gaze })
+      debouncedSaveGaze(gaze)
     },
-    [debouncedSave, mergeState]
+    [debouncedSaveGaze, mergeState]
+  )
+
+  const saveSeedData = useCallback(
+    async (seed: SeedData) => {
+      await saveIdentitySection('seed', seed)
+    },
+    [saveIdentitySection]
+  )
+
+  const saveStudentData = useCallback(
+    async (student: StudentData) => {
+      await saveIdentitySection('student', student)
+    },
+    [saveIdentitySection]
+  )
+
+  const saveGazeData = useCallback(
+    async (gaze: GazeData) => {
+      await saveIdentitySection('gaze', gaze)
+    },
+    [saveIdentitySection]
   )
 
   const refreshConnectStatus = useCallback(async () => {
@@ -594,6 +656,9 @@ export function useOnboarding(): UseOnboardingReturn {
     updateSeed,
     updateStudent,
     updateGaze,
+    saveSeedData,
+    saveStudentData,
+    saveGazeData,
     refreshState,
     refreshConnectStatus,
     startConnection,
