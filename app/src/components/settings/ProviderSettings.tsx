@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Card } from '../ui';
 import { apiFetch } from '../../lib/apiFetch';
+import { useCreateCard, useThemes } from '../../hooks/useCards';
 
 interface CalendarAccount {
   id: string;
@@ -32,6 +33,8 @@ interface AccountStatus {
 }
 
 export function ProviderSettings() {
+  const { data: themes = [], refetch: refetchThemes } = useThemes();
+  const createCard = useCreateCard();
   const [accounts, setAccounts] = useState<CalendarAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
@@ -40,6 +43,9 @@ export function ProviderSettings() {
   const [accountStatus, setAccountStatus] = useState<Record<string, AccountStatus>>({});
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [newThemeTitle, setNewThemeTitle] = useState('');
+  const [creatingTheme, setCreatingTheme] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -208,6 +214,31 @@ export function ProviderSettings() {
     }
   }
 
+  async function handleCreateTheme() {
+    const title = newThemeTitle.trim();
+    if (!title) {
+      setThemeError('Theme title is required.');
+      return;
+    }
+
+    setCreatingTheme(true);
+    setThemeError(null);
+    try {
+      await createCard.mutateAsync({
+        title,
+        unitType: 'THEME',
+        status: 'not_started',
+      });
+      setNewThemeTitle('');
+      await refetchThemes();
+    } catch (error) {
+      console.error('Failed to create theme:', error);
+      setThemeError('Failed to create theme. Please try again.');
+    } finally {
+      setCreatingTheme(false);
+    }
+  }
+
   async function handleToggleCalendar(accountId: string, calendarId: string) {
     const account = accounts.find((a) => a.id === accountId);
     if (!account) return;
@@ -267,11 +298,14 @@ export function ProviderSettings() {
   return (
     <Card>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
-        <h2 className="text-lg font-semibold">Provider Integration</h2>
+        <h2 className="text-lg font-semibold">Source Setup</h2>
         <Button variant="primary" size="sm" onClick={handleConnect}>
           + Connect Google Account
         </Button>
       </div>
+      <p className="text-sm text-muted" style={{ marginBottom: 'var(--space-4)' }}>
+        Account sources and theme setup now live here. Onboarding no longer creates themes.
+      </p>
 
       {accounts.length === 0 ? (
         <div
@@ -538,6 +572,56 @@ export function ProviderSettings() {
           ))}
         </div>
       )}
+
+      <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-5)', borderTop: '1px solid var(--color-sage-border-light)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+          <h3 className="text-md font-semibold" style={{ margin: 0 }}>Themes</h3>
+          <span className="text-xs text-muted">{themes.length} total</span>
+        </div>
+
+        <p className="text-sm text-muted" style={{ marginBottom: 'var(--space-3)' }}>
+          Define themes here before planning actions and experiments.
+        </p>
+
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+          <input
+            className="input"
+            value={newThemeTitle}
+            onChange={(event) => setNewThemeTitle(event.target.value)}
+            placeholder="Create a new theme..."
+            maxLength={120}
+          />
+          <Button variant="secondary" size="sm" onClick={handleCreateTheme} disabled={creatingTheme}>
+            {creatingTheme ? 'Creating...' : 'Add Theme'}
+          </Button>
+        </div>
+
+        {themeError ? (
+          <p style={{ margin: '0 0 var(--space-3)', color: 'var(--color-critical)', fontSize: 13 }}>{themeError}</p>
+        ) : null}
+
+        {themes.length === 0 ? (
+          <p className="text-sm text-muted" style={{ margin: 0 }}>No themes yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            {themes.map((theme) => (
+              <div
+                key={theme.id}
+                style={{
+                  border: '1px solid var(--color-sage-border-light)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: 'var(--space-2) var(--space-3)',
+                  background: 'var(--color-bg)',
+                  fontSize: 13,
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                {theme.title}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </Card>
   );
 }

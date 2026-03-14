@@ -1,31 +1,14 @@
-import { useState, useCallback, useEffect } from 'react'
-import { useUserSettings, useUpdateUserSettings } from '../../../hooks/useUserSettings'
-import { useCreateCard, useThemes } from '../../../hooks/useCards'
-import { OnboardingProgress, OnboardingStepStatus } from '../../../services/userSettingsTypes'
-import { Card } from '../../../lib/api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDebouncedCallback } from 'use-debounce'
+import { apiFetch } from '../../../lib/apiFetch'
 
-// Step order matching mock: kaizen-onboarding.jsx
-export const ONBOARDING_STEPS = [
-  'welcome',
-  'connect',      // Connect calendar + analyze
-  'reflect',      // Journal/reflections input
-  'season',       // Define planning cycle
-  'themes',
-  'gates',        // Commitments
-  'routines',
-  'experiments',  // Optional experiments
-  'complete',
-] as const
+export const ONBOARDING_STEPS = ['connect', 'seed', 'student', 'gaze'] as const
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]
 
-const DEFAULT_PROGRESS: OnboardingProgress = {
-  currentStep: 0,
-  completedAt: null,
-  steps: {},
-}
+type Provider = 'google' | 'n2f'
 
-// Suggestion types from AI analysis
+// Legacy onboarding step types are kept for compatibility with existing step components.
 export interface SuggestedTheme {
   id: string
   name: string
@@ -54,7 +37,6 @@ export interface Suggestions {
   routines: SuggestedRoutine[]
 }
 
-// Season data type
 export interface SeasonData {
   name: string
   startDate: string
@@ -63,338 +45,561 @@ export interface SeasonData {
   intention: string
 }
 
-function getNextSeasonDefault(): SeasonData {
-  const today = new Date()
-  const year = today.getFullYear()
-  const currentQ = Math.floor(today.getMonth() / 3) // 0=Q1, 1=Q2, 2=Q3, 3=Q4
-  const nextQ = (currentQ + 1) % 4
-  const nextYear = nextQ === 0 ? year + 1 : year
-  const startMonth = String(nextQ * 3 + 1).padStart(2, '0')
-  const startDate = `${nextYear}-${startMonth}-01`
-  const weeks = 13
-  // end date = startDate + 13 weeks - 1 day
-  const end = new Date(startDate)
-  end.setDate(end.getDate() + weeks * 7 - 1)
-  const endDate = end.toISOString().split('T')[0]
-  return { name: `Q${nextQ + 1} ${nextYear}`, startDate, endDate, weeks, intention: '' }
+export interface StepValidation {
+  isValid: boolean
+  errors: string[]
 }
 
-// Normalize legacy array format to new object format
-function normalizeOnboardingProgress(progress: unknown): OnboardingProgress {
-  if (
-    progress &&
-    typeof progress === 'object' &&
-    !Array.isArray(progress) &&
-    'currentStep' in progress
-  ) {
-    const p = progress as OnboardingProgress
-    return {
-      currentStep: p.currentStep ?? 0,
-      completedAt: p.completedAt ?? null,
-      steps: p.steps ?? {},
-    }
-  }
-  return { ...DEFAULT_PROGRESS }
+export interface ConnectState {
+  provider: Provider
+  resolvedProvider: Provider
+  fallbackProvider: Provider
+  fallbackUsed: boolean
+  connected: boolean
+  connectedAccountIds: string[]
+  connectedAccounts: Array<{
+    id: string
+    provider: string
+    email: string
+    createdAt: string
+  }>
+  lastCheckedAt: string | null
+}
+
+export interface SeedData {
+  coreIdentity: string
+  startingPoint: string
+  narrative: string
+}
+
+export interface StudentData {
+  becoming: string
+  horizon: string
+  narrative: string
+}
+
+export interface GazeData {
+  desires: string
+  reflection: string
+  nonNegotiables: string[]
 }
 
 export interface OnboardingState {
+  flowVersion: number
   currentStep: number
+  currentStepKey: OnboardingStep
+  maxAllowedStep: number
+  connectState: ConnectState
+  seed: SeedData
+  student: StudentData
+  gaze: GazeData
+  kaizenExperiment: Record<string, unknown> | null
+  synthesisStatus: string
+  completedAt: string | null
+  isComplete: boolean
+  stepValidation: Record<OnboardingStep, StepValidation>
+  connectedAccounts: ConnectState['connectedAccounts']
+}
+
+interface OnboardingLocalState {
   isLoading: boolean
+  isSaving: boolean
+  isSynthesizing: boolean
+  isConnecting: boolean
   error: string | null
-  createdThemes: Card[]
-  progress: OnboardingProgress
-  // Calendar connection state
-  hasCalendarConnected: boolean
-  // Calendar analysis state
-  isAnalyzing: boolean
-  isAnalyzed: boolean
-  // Journal/reflection state
-  journalText: string
-  journalFile: File | null
-  // Season state
-  season: SeasonData
-  // AI suggestions
-  suggestions: Suggestions
+  data: OnboardingState
 }
 
 export interface UseOnboardingReturn {
-  state: OnboardingState
+  state: OnboardingLocalState
   currentStepName: OnboardingStep
-  goToStep: (step: number) => void
-  nextStep: () => void
-  prevStep: () => void
-  skipStep: () => void
-  completeStep: (entityIds?: string[]) => void
-  createTheme: (title: string) => Promise<Card | null>
-  createAction: (
-    type: 'ACTION_GATE' | 'ACTION_EXPERIMENT' | 'ACTION_ROUTINE' | 'ACTION_OPS',
-    parentId: string,
-    data: { title: string; criteria?: string[]; targetDate?: string; lagWeeks?: number }
-  ) => Promise<Card | null>
-  isComplete: boolean
-  canSkip: boolean
-  refetchThemes: () => void
-  // New methods for personalized onboarding
-  analyzeCalendar: () => Promise<void>
-  setJournalText: (text: string) => void
-  setJournalFile: (file: File | null) => void
-  setSeason: (season: SeasonData) => void
+  setCurrentStep: (step: number) => Promise<void>
+  updateSeed: (seed: SeedData) => void
+  updateStudent: (student: StudentData) => void
+  updateGaze: (gaze: GazeData) => void
+  refreshState: () => Promise<void>
+  refreshConnectStatus: () => Promise<void>
+  startConnection: (provider?: Provider) => Promise<void>
+  synthesizeExperiment: () => Promise<void>
+  completeOnboarding: () => Promise<void>
+  clearError: () => void
+  canAdvanceTo: (step: number) => boolean
+}
+
+const DEFAULT_STEP_VALIDATION: Record<OnboardingStep, StepValidation> = {
+  connect: { isValid: false, errors: [] },
+  seed: { isValid: false, errors: [] },
+  student: { isValid: false, errors: [] },
+  gaze: { isValid: false, errors: [] },
+}
+
+const DEFAULT_STATE: OnboardingState = {
+  flowVersion: 2,
+  currentStep: 0,
+  currentStepKey: 'connect',
+  maxAllowedStep: 0,
+  connectState: {
+    provider: 'n2f',
+    resolvedProvider: 'google',
+    fallbackProvider: 'google',
+    fallbackUsed: true,
+    connected: false,
+    connectedAccountIds: [],
+    connectedAccounts: [],
+    lastCheckedAt: null,
+  },
+  seed: {
+    coreIdentity: '',
+    startingPoint: '',
+    narrative: '',
+  },
+  student: {
+    becoming: '',
+    horizon: '',
+    narrative: '',
+  },
+  gaze: {
+    desires: '',
+    reflection: '',
+    nonNegotiables: [],
+  },
+  kaizenExperiment: null,
+  synthesisStatus: 'idle',
+  completedAt: null,
+  isComplete: false,
+  stepValidation: DEFAULT_STEP_VALIDATION,
+  connectedAccounts: [],
+}
+
+function toObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+  return value as Record<string, unknown>
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function stringArrayValue(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  return value.filter((item): item is string => typeof item === 'string')
+}
+
+function stepFromUnknown(value: unknown): OnboardingStep {
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase() as OnboardingStep
+    if (ONBOARDING_STEPS.includes(normalized)) {
+      return normalized
+    }
+  }
+
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    const index = Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, value))
+    return ONBOARDING_STEPS[index]
+  }
+
+  return 'connect'
+}
+
+function stepIndex(step: OnboardingStep): number {
+  return ONBOARDING_STEPS.indexOf(step)
+}
+
+function normalizeStepValidation(value: unknown): Record<OnboardingStep, StepValidation> {
+  const objectValue = toObject(value)
+
+  return {
+    connect: {
+      isValid: Boolean(toObject(objectValue.connect).isValid),
+      errors: stringArrayValue(toObject(objectValue.connect).errors),
+    },
+    seed: {
+      isValid: Boolean(toObject(objectValue.seed).isValid),
+      errors: stringArrayValue(toObject(objectValue.seed).errors),
+    },
+    student: {
+      isValid: Boolean(toObject(objectValue.student).isValid),
+      errors: stringArrayValue(toObject(objectValue.student).errors),
+    },
+    gaze: {
+      isValid: Boolean(toObject(objectValue.gaze).isValid),
+      errors: stringArrayValue(toObject(objectValue.gaze).errors),
+    },
+  }
+}
+
+export function normalizeOnboardingState(payload: unknown): OnboardingState {
+  const data = toObject(payload)
+  const currentStepKey = stepFromUnknown(data.currentStepKey ?? data.currentStep)
+  const currentStep = stepIndex(currentStepKey)
+
+  const connectStateRaw = toObject(data.connectState)
+  const connectedAccounts = Array.isArray(data.connectedAccounts)
+    ? data.connectedAccounts
+        .map((account) => {
+          const accountRecord = toObject(account)
+          return {
+            id: stringValue(accountRecord.id),
+            provider: stringValue(accountRecord.provider),
+            email: stringValue(accountRecord.email),
+            createdAt: stringValue(accountRecord.createdAt),
+          }
+        })
+        .filter((account) => account.id.length > 0)
+    : []
+
+  const provider = stringValue(connectStateRaw.provider) === 'google' ? 'google' : 'n2f'
+  const resolvedProvider = stringValue(connectStateRaw.resolvedProvider) === 'n2f' ? 'n2f' : 'google'
+  const fallbackProvider = stringValue(connectStateRaw.fallbackProvider) === 'n2f' ? 'n2f' : 'google'
+
+  return {
+    flowVersion: typeof data.flowVersion === 'number' ? data.flowVersion : 2,
+    currentStep,
+    currentStepKey,
+    maxAllowedStep: typeof data.maxAllowedStep === 'number' ? data.maxAllowedStep : currentStep,
+    connectState: {
+      provider,
+      resolvedProvider,
+      fallbackProvider,
+      fallbackUsed: Boolean(connectStateRaw.fallbackUsed),
+      connected: Boolean(connectStateRaw.connected),
+      connectedAccountIds: stringArrayValue(connectStateRaw.connectedAccountIds),
+      connectedAccounts,
+      lastCheckedAt: stringValue(connectStateRaw.lastCheckedAt) || null,
+    },
+    seed: {
+      coreIdentity: stringValue(toObject(data.seed).coreIdentity),
+      startingPoint: stringValue(toObject(data.seed).startingPoint),
+      narrative: stringValue(toObject(data.seed).narrative),
+    },
+    student: {
+      becoming: stringValue(toObject(data.student).becoming),
+      horizon: stringValue(toObject(data.student).horizon),
+      narrative: stringValue(toObject(data.student).narrative),
+    },
+    gaze: {
+      desires: stringValue(toObject(data.gaze).desires),
+      reflection: stringValue(toObject(data.gaze).reflection),
+      nonNegotiables: stringArrayValue(toObject(data.gaze).nonNegotiables),
+    },
+    kaizenExperiment: data.kaizenExperiment ? toObject(data.kaizenExperiment) : null,
+    synthesisStatus: stringValue(data.synthesisStatus) || 'idle',
+    completedAt: stringValue(data.completedAt) || null,
+    isComplete: Boolean(data.isComplete),
+    stepValidation: normalizeStepValidation(data.stepValidation),
+    connectedAccounts,
+  }
+}
+
+async function getOnboardingState(): Promise<OnboardingState> {
+  const response = await apiFetch('/api/onboarding/state')
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to load onboarding state')
+  }
+
+  return normalizeOnboardingState(await response.json())
+}
+
+async function saveOnboardingState(
+  patch: Partial<{
+    currentStep: number
+    seed: SeedData
+    student: StudentData
+    gaze: GazeData
+    provider: Provider
+  }>
+): Promise<OnboardingState> {
+  const response = await apiFetch('/api/onboarding/state', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(patch),
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}))
+    throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to save onboarding state')
+  }
+
+  return normalizeOnboardingState(await response.json())
+}
+
+export function canAdvanceToStep(maxAllowedStep: number, requestedStep: number): boolean {
+  return requestedStep <= maxAllowedStep
 }
 
 export function useOnboarding(): UseOnboardingReturn {
-  const { data: settings, isLoading: settingsLoading } = useUserSettings()
-  const { data: themes, refetch: refetchThemes } = useThemes()
-  const updateSettings = useUpdateUserSettings()
-  const createCard = useCreateCard()
-
-  const [state, setState] = useState<OnboardingState>({
-    currentStep: 0,
+  const [state, setState] = useState<OnboardingLocalState>({
     isLoading: true,
+    isSaving: false,
+    isSynthesizing: false,
+    isConnecting: false,
     error: null,
-    createdThemes: [],
-    progress: DEFAULT_PROGRESS,
-    hasCalendarConnected: false,
-    isAnalyzing: false,
-    isAnalyzed: false,
-    journalText: '',
-    journalFile: null,
-    season: getNextSeasonDefault(),
-    suggestions: { themes: [], gates: [], routines: [] },
+    data: DEFAULT_STATE,
   })
 
-  // Check calendar connection status
-  useEffect(() => {
-    const checkCalendarConnection = async () => {
-      try {
-        const res = await fetch('/api/calendar/accounts', { credentials: 'include' })
-        if (res.ok) {
-          const accounts = await res.json()
-          setState((prev) => ({ ...prev, hasCalendarConnected: accounts.length > 0 }))
-        }
-      } catch (err) {
-        console.error('Failed to check calendar connection:', err)
-      }
-    }
-    checkCalendarConnection()
+  const mergeState = useCallback((updater: (previous: OnboardingLocalState) => OnboardingLocalState) => {
+    setState((previous) => updater(previous))
   }, [])
 
-  // Sync with saved progress on load
-  useEffect(() => {
-    if (!settingsLoading) {
-      const normalizedProgress = settings
-        ? normalizeOnboardingProgress(settings.onboarding_progress)
-        : DEFAULT_PROGRESS
-      setState((prev) => ({
-        ...prev,
+  const refreshState = useCallback(async () => {
+    mergeState((previous) => ({ ...previous, isLoading: true, error: null }))
+    try {
+      const data = await getOnboardingState()
+      mergeState((previous) => ({ ...previous, isLoading: false, data }))
+    } catch (err) {
+      mergeState((previous) => ({
+        ...previous,
         isLoading: false,
-        currentStep: normalizedProgress.currentStep,
-        progress: normalizedProgress,
-        createdThemes: themes ?? [],
+        error: err instanceof Error ? err.message : 'Failed to load onboarding',
       }))
     }
-  }, [settings, settingsLoading, themes])
+  }, [mergeState])
 
-  // Save progress to server
-  const saveProgress = useCallback(
-    async (progress: OnboardingProgress) => {
-      try {
-        await updateSettings.mutateAsync({ onboarding_progress: progress })
-      } catch (err) {
-        console.error('Failed to save onboarding progress:', err)
-      }
-    },
-    [updateSettings]
-  )
+  useEffect(() => {
+    refreshState()
+  }, [refreshState])
 
-  const goToStep = useCallback(
-    (step: number) => {
-      const newProgress = {
-        ...state.progress,
-        currentStep: step,
-      }
-      setState((prev) => ({ ...prev, currentStep: step, progress: newProgress }))
-      saveProgress(newProgress)
-    },
-    [state.progress, saveProgress]
-  )
-
-  const nextStep = useCallback(() => {
-    const next = Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1)
-    goToStep(next)
-  }, [state.currentStep, goToStep])
-
-  const prevStep = useCallback(() => {
-    const prev = Math.max(state.currentStep - 1, 0)
-    goToStep(prev)
-  }, [state.currentStep, goToStep])
-
-  const updateStepStatus = useCallback(
-    (stepName: OnboardingStep, status: OnboardingStepStatus, entityIds?: string[]) => {
-      const nextStepIdx = Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1)
-      const newProgress: OnboardingProgress = {
-        ...state.progress,
-        currentStep: nextStepIdx,
-        steps: {
-          ...state.progress.steps,
-          [stepName]: { status, entityIds },
-        },
-      }
-
-      if (state.currentStep >= ONBOARDING_STEPS.length - 1) {
-        newProgress.completedAt = new Date().toISOString()
-      }
-
-      setState((prev) => ({
-        ...prev,
-        currentStep: newProgress.currentStep,
-        progress: newProgress,
-      }))
-      saveProgress(newProgress)
-    },
-    [state.progress, state.currentStep, saveProgress]
-  )
-
-  const skipStep = useCallback(() => {
-    const stepName = ONBOARDING_STEPS[state.currentStep]
-    updateStepStatus(stepName, 'skipped')
-  }, [state.currentStep, updateStepStatus])
-
-  const completeStep = useCallback(
-    (entityIds?: string[]) => {
-      const stepName = ONBOARDING_STEPS[state.currentStep]
-      updateStepStatus(stepName, 'completed', entityIds)
-    },
-    [state.currentStep, updateStepStatus]
-  )
-
-  const createTheme = useCallback(
-    async (title: string): Promise<Card | null> => {
-      try {
-        const card = await createCard.mutateAsync({
-          title,
-          unitType: 'THEME',
-          status: 'not_started',
-        })
-        setState((prev) => ({
-          ...prev,
-          createdThemes: [...prev.createdThemes, card],
-        }))
-        return card
-      } catch (err) {
-        setState((prev) => ({
-          ...prev,
-          error: err instanceof Error ? err.message : 'Failed to create theme',
-        }))
-        return null
-      }
-    },
-    [createCard]
-  )
-
-  const createAction = useCallback(
+  const savePatch = useCallback(
     async (
-      type: 'ACTION_GATE' | 'ACTION_EXPERIMENT' | 'ACTION_ROUTINE' | 'ACTION_OPS',
-      parentId: string,
-      data: { title: string; criteria?: string[]; targetDate?: string; lagWeeks?: number }
-    ): Promise<Card | null> => {
+      patch: Partial<{
+        currentStep: number
+        seed: SeedData
+        student: StudentData
+        gaze: GazeData
+        provider: Provider
+      }>
+    ) => {
+      mergeState((previous) => ({ ...previous, isSaving: true, error: null }))
+
       try {
-        const card = await createCard.mutateAsync({
-          title: data.title,
-          unitType: type,
-          parentId,
-          status: 'not_started',
-          criteria: data.criteria,
-          targetDate: data.targetDate,
-          lagWeeks: data.lagWeeks,
-        })
-        return card
+        const data = await saveOnboardingState(patch)
+        mergeState((previous) => ({ ...previous, isSaving: false, data }))
       } catch (err) {
-        setState((prev) => ({
-          ...prev,
-          error: err instanceof Error ? err.message : 'Failed to create action',
+        mergeState((previous) => ({
+          ...previous,
+          isSaving: false,
+          error: err instanceof Error ? err.message : 'Failed to save onboarding',
         }))
-        return null
       }
     },
-    [createCard]
+    [mergeState]
   )
 
-  // Analyze calendar and generate suggestions
-  const analyzeCalendar = useCallback(async () => {
-    setState((prev) => ({ ...prev, isAnalyzing: true, error: null }))
+  const debouncedSave = useDebouncedCallback(savePatch, 450)
+
+  const setCurrentStep = useCallback(
+    async (step: number) => {
+      const clampedStep = Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, step))
+      await savePatch({ currentStep: clampedStep })
+    },
+    [savePatch]
+  )
+
+  const updateSeed = useCallback(
+    (seed: SeedData) => {
+      mergeState((previous) => ({
+        ...previous,
+        data: {
+          ...previous.data,
+          seed,
+        },
+      }))
+      debouncedSave({ seed })
+    },
+    [debouncedSave, mergeState]
+  )
+
+  const updateStudent = useCallback(
+    (student: StudentData) => {
+      mergeState((previous) => ({
+        ...previous,
+        data: {
+          ...previous.data,
+          student,
+        },
+      }))
+      debouncedSave({ student })
+    },
+    [debouncedSave, mergeState]
+  )
+
+  const updateGaze = useCallback(
+    (gaze: GazeData) => {
+      mergeState((previous) => ({
+        ...previous,
+        data: {
+          ...previous.data,
+          gaze,
+        },
+      }))
+      debouncedSave({ gaze })
+    },
+    [debouncedSave, mergeState]
+  )
+
+  const refreshConnectStatus = useCallback(async () => {
+    mergeState((previous) => ({ ...previous, error: null }))
+    try {
+      const response = await apiFetch('/api/onboarding/connect/status')
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to refresh connection status')
+      }
+
+      const payload = toObject(await response.json())
+      const connectedAccounts = Array.isArray(payload.accounts)
+        ? payload.accounts
+            .map((account) => {
+              const accountRecord = toObject(account)
+              return {
+                id: stringValue(accountRecord.id),
+                provider: stringValue(accountRecord.provider),
+                email: stringValue(accountRecord.email),
+                createdAt: stringValue(accountRecord.createdAt),
+              }
+            })
+            .filter((account) => account.id.length > 0)
+        : []
+
+      mergeState((previous) => ({
+        ...previous,
+        data: {
+          ...previous.data,
+          connectState: {
+            ...previous.data.connectState,
+            connected: Boolean(payload.connected),
+            connectedAccountIds: connectedAccounts.map((account) => account.id),
+            connectedAccounts,
+            lastCheckedAt: new Date().toISOString(),
+          },
+          connectedAccounts,
+        },
+      }))
+
+      await refreshState()
+    } catch (err) {
+      mergeState((previous) => ({
+        ...previous,
+        error: err instanceof Error ? err.message : 'Failed to refresh connection status',
+      }))
+    }
+  }, [mergeState, refreshState])
+
+  const startConnection = useCallback(
+    async (provider: Provider = 'n2f') => {
+      mergeState((previous) => ({ ...previous, isConnecting: true, error: null }))
+
+      try {
+        const response = await apiFetch('/api/onboarding/connect/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ provider }),
+        })
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}))
+          throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to start account connection')
+        }
+
+        const payload = toObject(await response.json())
+        const startUrl = stringValue(payload.startUrl)
+        if (!startUrl) {
+          throw new Error('Missing connect start URL')
+        }
+
+        window.location.href = startUrl
+      } catch (err) {
+        sessionStorage.removeItem('onboarding_connect_pending')
+        mergeState((previous) => ({
+          ...previous,
+          isConnecting: false,
+          error: err instanceof Error ? err.message : 'Failed to start account connection',
+        }))
+      }
+    },
+    [mergeState]
+  )
+
+  const synthesizeExperiment = useCallback(async () => {
+    mergeState((previous) => ({ ...previous, isSynthesizing: true, error: null }))
 
     try {
-      // Read file content if a file was uploaded
-      let combinedJournalText = state.journalText
-      if (state.journalFile) {
-        const fileContent = await state.journalFile.text()
-        combinedJournalText = combinedJournalText
-          ? `${combinedJournalText}\n\n--- File: ${state.journalFile.name} ---\n${fileContent}`
-          : fileContent
-      }
-
-      const response = await fetch('/api/onboarding/generate-suggestions', {
+      const response = await apiFetch('/api/onboarding/synthesize-experiment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ journalText: combinedJournalText }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate suggestions')
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to synthesize experiment')
       }
 
-      const suggestions = await response.json()
-      setState((prev) => ({
-        ...prev,
-        isAnalyzing: false,
-        isAnalyzed: true,
-        suggestions,
-      }))
+      await refreshState()
+      mergeState((previous) => ({ ...previous, isSynthesizing: false }))
     } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        isAnalyzing: false,
-        error: err instanceof Error ? err.message : 'Failed to analyze calendar',
+      mergeState((previous) => ({
+        ...previous,
+        isSynthesizing: false,
+        error: err instanceof Error ? err.message : 'Failed to synthesize experiment',
       }))
     }
-  }, [state.journalText, state.journalFile])
+  }, [mergeState, refreshState])
 
-  // Set journal text
-  const setJournalText = useCallback((text: string) => {
-    setState((prev) => ({ ...prev, journalText: text }))
-  }, [])
+  const completeOnboarding = useCallback(async () => {
+    mergeState((previous) => ({ ...previous, isSaving: true, error: null }))
 
-  // Set journal file
-  const setJournalFile = useCallback((file: File | null) => {
-    setState((prev) => ({ ...prev, journalFile: file }))
-  }, [])
+    try {
+      const response = await apiFetch('/api/onboarding/complete', {
+        method: 'POST',
+      })
 
-  // Set season data
-  const setSeason = useCallback((season: SeasonData) => {
-    setState((prev) => ({ ...prev, season }))
-  }, [])
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to complete onboarding')
+      }
 
-  const currentStepName = ONBOARDING_STEPS[state.currentStep]
-  const isComplete = state.progress.completedAt !== null
-  const canSkip = !['welcome', 'complete'].includes(currentStepName)
+      await refreshState()
+      mergeState((previous) => ({ ...previous, isSaving: false }))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to complete onboarding'
+      mergeState((previous) => ({
+        ...previous,
+        isSaving: false,
+        error: message,
+      }))
+      throw err instanceof Error ? err : new Error(message)
+    }
+  }, [mergeState, refreshState])
+
+  const clearError = useCallback(() => {
+    mergeState((previous) => ({ ...previous, error: null }))
+  }, [mergeState])
+
+  const canAdvanceTo = useCallback((step: number) => canAdvanceToStep(state.data.maxAllowedStep, step), [state.data.maxAllowedStep])
+
+  const currentStepName = useMemo(() => state.data.currentStepKey, [state.data.currentStepKey])
 
   return {
     state,
     currentStepName,
-    goToStep,
-    nextStep,
-    prevStep,
-    skipStep,
-    completeStep,
-    createTheme,
-    createAction,
-    isComplete,
-    canSkip,
-    refetchThemes,
-    analyzeCalendar,
-    setJournalText,
-    setJournalFile,
-    setSeason,
+    setCurrentStep,
+    updateSeed,
+    updateStudent,
+    updateGaze,
+    refreshState,
+    refreshConnectStatus,
+    startConnection,
+    synthesizeExperiment,
+    completeOnboarding,
+    clearError,
+    canAdvanceTo,
   }
 }
