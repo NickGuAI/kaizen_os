@@ -1,4 +1,4 @@
-// AppLayout - Shared shell with sumi-e CardNav
+// AppLayout - Shared shell with sumi-e CardNav (fixed overlay)
 import { ReactNode } from 'react'
 import { CardNav } from './CardNav'
 import { AgentChat } from '../AgentChat'
@@ -14,7 +14,6 @@ export function AppLayout({ children, showAgentChatWidget = true }: AppLayoutPro
   return (
     <div className="kaizen-layout">
       <CardNav variant="light" />
-      <div className="cardnav-spacer" />
 
       <main className="kaizen-main">
         {children}

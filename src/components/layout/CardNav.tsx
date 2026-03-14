@@ -1,6 +1,6 @@
 // CardNav - Sumi-e styled collapsible card navigation
 // Collapsed bar with logo + hamburger; expands to reveal nav cards on click
-import { useLayoutEffect, useRef, useState, useCallback, useEffect } from 'react'
+import { useLayoutEffect, useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { gsap } from 'gsap'
 import { useThemes } from '../../hooks/useCards'
@@ -45,49 +45,51 @@ function useNavItems(): CardNavItem[] {
   const { data: themes } = useThemes()
   const { data: activeSeason } = useActiveSeason()
 
-  const themeLinks: CardNavLink[] =
-    themes && themes.length > 0
-      ? themes.slice(0, 4).map((t) => ({ label: t.title, path: `/theme/${t.id}` }))
-      : [{ label: 'Themes overview', path: '/where-am-i' }]
+  return useMemo(() => {
+    const themeLinks: CardNavLink[] =
+      themes && themes.length > 0
+        ? themes.slice(0, 4).map((t) => ({ label: t.title, path: `/theme/${t.id}` }))
+        : [{ label: 'Themes overview', path: '/where-am-i' }]
 
-  const seasonLinks: CardNavLink[] = [{ label: 'All seasons', path: '/seasons' }]
-  if (activeSeason) {
-    seasonLinks.unshift({ label: activeSeason.name, path: `/seasons/${activeSeason.id}` })
-  }
+    const seasonLinks: CardNavLink[] = [{ label: 'All seasons', path: '/seasons' }]
+    if (activeSeason) {
+      seasonLinks.unshift({ label: activeSeason.name, path: `/seasons/${activeSeason.id}` })
+    }
 
-  return [
-    {
-      label: 'Home',
-      bgColor: '#2A2A28',
-      textColor: '#F5F1EB',
-      links: [
-        { label: 'Planner', path: '/planner' },
-        { label: 'Chat', path: '/' },
-        { label: 'Review', path: '/review' },
-      ],
-    },
-    {
-      label: 'Themes',
-      bgColor: '#4A5540',
-      textColor: '#F5F1EB',
-      links: themeLinks,
-    },
-    {
-      label: 'Seasons',
-      bgColor: '#5C5040',
-      textColor: '#F5F1EB',
-      links: seasonLinks,
-    },
-    {
-      label: 'Settings',
-      bgColor: '#3D4450',
-      textColor: '#F5F1EB',
-      links: [
-        { label: 'Preferences', path: '/settings' },
-        { label: 'Rules', path: '/settings/rules' },
-      ],
-    },
-  ]
+    return [
+      {
+        label: 'Home',
+        bgColor: '#2A2A28',
+        textColor: '#F5F1EB',
+        links: [
+          { label: 'Planner', path: '/planner' },
+          { label: 'Chat', path: '/chat' },
+          { label: 'Review', path: '/review' },
+        ],
+      },
+      {
+        label: 'Themes',
+        bgColor: '#4A5540',
+        textColor: '#F5F1EB',
+        links: themeLinks,
+      },
+      {
+        label: 'Seasons',
+        bgColor: '#5C5040',
+        textColor: '#F5F1EB',
+        links: seasonLinks,
+      },
+      {
+        label: 'Settings',
+        bgColor: '#3D4450',
+        textColor: '#F5F1EB',
+        links: [
+          { label: 'Preferences', path: '/settings' },
+          { label: 'Rules', path: '/settings/rules' },
+        ],
+      },
+    ]
+  }, [themes, activeSeason])
 }
 
 export function CardNav({ variant = 'light', className = '' }: CardNavProps) {
