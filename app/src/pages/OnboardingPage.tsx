@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { OnboardingWizard } from '../components/onboarding'
 import { useUserSettings } from '../hooks/useUserSettings'
@@ -6,6 +6,19 @@ import { useUserSettings } from '../hooks/useUserSettings'
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { data: settings, isLoading } = useUserSettings()
+
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const startMusic = useCallback(() => {
+    const el = audioRef.current
+    if (el && el.paused) {
+      el.play().catch(() => {})
+    }
+  }, [])
+
+  useEffect(() => {
+    document.addEventListener('click', startMusic, { once: true })
+    return () => document.removeEventListener('click', startMusic)
+  }, [startMusic])
 
   // Redirect if onboarding is already complete
   useEffect(() => {
@@ -45,7 +58,7 @@ export default function OnboardingPage() {
         paddingBottom: 'var(--space-12)',
       }}
     >
-      <audio src="/assets/zenkai.wav" autoPlay loop style={{ display: 'none' }} />
+      <audio ref={audioRef} src="/assets/zenkai.wav" loop />
       <OnboardingWizard />
     </div>
   )

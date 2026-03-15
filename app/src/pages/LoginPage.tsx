@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/authContext'
 import { CardNav } from '../components/layout/CardNav'
@@ -46,9 +46,22 @@ export default function LoginPage() {
     }
   }
 
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const startMusic = useCallback(() => {
+    const el = audioRef.current
+    if (el && el.paused) {
+      el.play().catch(() => {})
+    }
+  }, [])
+
+  useEffect(() => {
+    document.addEventListener('click', startMusic, { once: true })
+    return () => document.removeEventListener('click', startMusic)
+  }, [startMusic])
+
   return (
     <div className="login-page">
-      <audio src="/assets/zenkai.wav" autoPlay loop style={{ display: 'none' }} />
+      <audio ref={audioRef} src="/assets/zenkai.wav" loop />
       <CardNav variant="dark" />
 
       <div className="login-card">
