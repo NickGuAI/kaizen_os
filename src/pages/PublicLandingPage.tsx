@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CardNav } from '../components/layout/CardNav'
 import LightRays from '../components/reactbits/LightRays'
+import ShapeBlur from '../components/reactbits/ShapeBlur'
 import ShinyText from '../components/reactbits/ShinyText'
 import '../styles/public-landing.css'
 
@@ -39,16 +40,16 @@ export default function PublicLandingPage() {
         {!prefersReducedMotion && (
           <LightRays
             raysOrigin="top-center"
-            raysColor="#8B9467"
-            raysSpeed={0.4}
-            lightSpread={1.5}
-            rayLength={2.5}
+            raysColor="#a8b880"
+            raysSpeed={0.5}
+            lightSpread={2.0}
+            rayLength={3.0}
             pulsating
-            fadeDistance={1.2}
-            saturation={0.7}
+            fadeDistance={1.6}
+            saturation={0.85}
             followMouse
-            mouseInfluence={0.08}
-            noiseAmount={0.05}
+            mouseInfluence={0.1}
+            noiseAmount={0.03}
             distortion={0}
           />
         )}
@@ -56,17 +57,29 @@ export default function PublicLandingPage() {
       <div className="public-landing__overlay" aria-hidden="true" />
 
       <section className="public-landing__hero">
-        <p className="public-landing__kicker">
-          <ShinyText text="Kaizen OS" speed={4} color="#8B9467" shineColor="#f5f1eb" />
-        </p>
-        <h1 className="public-landing__headline">Improve the day, and life improves itself.</h1>
-        <p className="public-landing__subhead">
-          Small deliberate steps, repeated with care, become transformation.
-        </p>
+        {!prefersReducedMotion && (
+          <div className="public-landing__shape-blur" aria-hidden="true">
+            <ShapeBlur
+              cornerRadius={28}
+              borderSize={0.012}
+              circleSize={0.5}
+              circleEdge={0.2}
+            />
+          </div>
+        )}
+        <div className="public-landing__hero-content">
+          <p className="public-landing__kicker">
+            <ShinyText text="Kaizen OS" speed={4} color="#8B9467" shineColor="#f5f1eb" />
+          </p>
+          <h1 className="public-landing__headline">Improve the day, and life improves itself.</h1>
+          <p className="public-landing__subhead">
+            Small deliberate steps, repeated with care, become transformation.
+          </p>
 
-        <Link to="/login" className="public-landing__cta">
-          Enter Kaizen OS
-        </Link>
+          <Link to="/login" className="public-landing__cta">
+            Enter Kaizen OS
+          </Link>
+        </div>
       </section>
     </main>
   )

@@ -8,15 +8,10 @@ interface Props {
 }
 
 const STEP_LABELS: Record<OnboardingStep, string> = {
-  welcome: 'Welcome',
   connect: 'Connect',
-  reflect: 'Reflect',
-  season: 'Season',
-  themes: 'Themes',
-  gates: 'Gates',
-  routines: 'Routines',
-  experiments: 'Experiments',
-  complete: 'Begin',
+  seed: 'Seed',
+  student: 'Student',
+  gaze: 'Gaze',
 }
 
 export function OnboardingProgress({ currentStep, progress }: Props) {

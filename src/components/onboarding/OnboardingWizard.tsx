@@ -1,162 +1,189 @@
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Stepper, StepperStep } from '../ui/Stepper'
 import { useOnboarding } from './hooks/useOnboarding'
-import { OnboardingProgress } from './OnboardingProgress'
-import {
-  WelcomeStep,
-  ConnectStep,
-  ReflectStep,
-  SeasonStep,
-  ThemeStep,
-  GateStep,
-  RoutineStep,
-  ExperimentStep,
-  CompleteStep,
-} from './steps'
-import { useUserSettings } from '../../hooks/useUserSettings'
+import { ConnectStep, GazeStep, SeedStep, StudentStep } from './steps'
 
 export function OnboardingWizard() {
+  const navigate = useNavigate()
+
   const {
     state,
     currentStepName,
-    skipStep,
-    completeStep,
-    createTheme,
-    createAction,
-    refetchThemes,
-    analyzeCalendar,
-    setJournalText,
-    setJournalFile,
-    setSeason,
-    prevStep,
+    setCurrentStep,
+    updateSeed,
+    updateStudent,
+    updateGaze,
+    refreshConnectStatus,
+    startConnection,
+    synthesizeExperiment,
+    completeOnboarding,
+    clearError,
+    canAdvanceTo,
   } = useOnboarding()
 
-  const { data: settings } = useUserSettings()
-  const defaultLagWeeks = settings?.defaultLagWeeks ?? 6
+  const currentValidation = state.data.stepValidation[currentStepName]
+
+  const canSynthesize =
+    state.data.stepValidation.connect.isValid &&
+    state.data.stepValidation.seed.isValid &&
+    state.data.stepValidation.student.isValid &&
+    state.data.stepValidation.gaze.isValid
+
+  const synthesisReady = state.data.synthesisStatus === 'ready' && Boolean(state.data.kaizenExperiment)
+
+  const steps = useMemo<StepperStep[]>(
+    () => [
+      {
+        id: 'connect',
+        title: 'Connect Account',
+        description: 'Connect your account to confirm this onboarding is intentional and grounded in real data.',
+        content: (
+          <ConnectStep
+            connectState={state.data.connectState}
+            isConnecting={state.isConnecting}
+            isSaving={state.isSaving}
+            onStartConnect={() => startConnection('n2f')}
+            onRefreshStatus={refreshConnectStatus}
+          />
+        ),
+      },
+      {
+        id: 'seed',
+        title: 'Define the Seed',
+        description: 'Write your starting point and core identity in enough depth to be useful.',
+        content: (
+          <SeedStep
+            value={state.data.seed}
+            errors={state.data.stepValidation.seed.errors}
+            onChange={updateSeed}
+          />
+        ),
+      },
+      {
+        id: 'student',
+        title: 'Define the Student',
+        description: 'Describe the person you are becoming, with a clear horizon and practical stakes.',
+        content: (
+          <StudentStep
+            value={state.data.student}
+            errors={state.data.stepValidation.student.errors}
+            onChange={updateStudent}
+          />
+        ),
+      },
+      {
+        id: 'gaze',
+        title: 'Define the Gaze',
+        description: 'Reflect deeply on your desires and tensions. This drives synthesis of your Kaizen Experiment.',
+        content: (
+          <GazeStep
+            value={state.data.gaze}
+            errors={state.data.stepValidation.gaze.errors}
+            canSynthesize={canSynthesize}
+            isSynthesizing={state.isSynthesizing}
+            kaizenExperiment={state.data.kaizenExperiment}
+            onChange={updateGaze}
+            onSynthesize={synthesizeExperiment}
+          />
+        ),
+      },
+    ],
+    [
+      canSynthesize,
+      refreshConnectStatus,
+      startConnection,
+      state.data.connectState,
+      state.data.gaze,
+      state.data.kaizenExperiment,
+      state.data.seed,
+      state.data.stepValidation.gaze.errors,
+      state.data.stepValidation.seed.errors,
+      state.data.stepValidation.student.errors,
+      state.data.student,
+      state.isConnecting,
+      state.isSaving,
+      state.isSynthesizing,
+      synthesizeExperiment,
+      updateGaze,
+      updateSeed,
+      updateStudent,
+    ]
+  )
+
+  const isWorking = state.isSaving || state.isConnecting || state.isSynthesizing
+
+  const isNextDisabled =
+    !currentValidation.isValid ||
+    (currentStepName === 'gaze' && !synthesisReady) ||
+    (state.data.currentStep < 3 && !canAdvanceTo(state.data.currentStep + 1)) ||
+    isWorking
 
   if (state.isLoading) {
     return (
-      <div style={{ width: '100%', maxWidth: '560px', margin: '0 auto', padding: '0 var(--space-6)' }}>
-        <div
-          className="flex items-center justify-center"
-          style={{ minHeight: '400px', color: 'var(--color-text-secondary)' }}
-        >
-          Loading...
+      <div style={{ width: '100%', maxWidth: '720px', margin: '0 auto', padding: '0 var(--space-6)' }}>
+        <div className="flex items-center justify-center" style={{ minHeight: '360px', color: 'var(--color-text-secondary)' }}>
+          Loading onboarding...
         </div>
       </div>
     )
   }
 
-  const renderStep = () => {
-    switch (currentStepName) {
-      case 'welcome':
-        return (
-          <WelcomeStep
-            onNext={() => {
-              completeStep()
-            }}
-          />
-        )
-
-      case 'connect':
-        return (
-          <ConnectStep
-            onNext={() => completeStep()}
-            onSkip={skipStep}
-          />
-        )
-
-      case 'reflect':
-        return (
-          <ReflectStep
-            journalText={state.journalText}
-            journalFile={state.journalFile}
-            onTextChange={setJournalText}
-            onFileChange={setJournalFile}
-            onNext={() => completeStep()}
-            onSkip={skipStep}
-            onAnalyze={analyzeCalendar}
-            isAnalyzing={state.isAnalyzing}
-            hasCalendarConnected={state.hasCalendarConnected}
-          />
-        )
-
-      case 'season':
-        return (
-          <SeasonStep
-            season={state.season}
-            onUpdate={setSeason}
-            onNext={() => completeStep()}
-            onBack={prevStep}
-          />
-        )
-
-      case 'themes':
-        return (
-          <ThemeStep
-            createdThemes={state.createdThemes}
-            suggestions={state.suggestions}
-            onCreateTheme={createTheme}
-            onNext={(entityIds) => {
-              refetchThemes()
-              completeStep(entityIds)
-            }}
-            onSkip={skipStep}
-          />
-        )
-
-      case 'gates':
-        return (
-          <GateStep
-            themes={state.createdThemes}
-            suggestions={state.suggestions}
-            onCreateAction={(type, parentId, data) => createAction(type, parentId, data)}
-            onNext={(entityIds) => completeStep(entityIds)}
-            onSkip={skipStep}
-          />
-        )
-
-      case 'routines':
-        return (
-          <RoutineStep
-            themes={state.createdThemes}
-            suggestions={state.suggestions}
-            onCreateAction={(type, parentId, data) => createAction(type, parentId, data)}
-            onNext={(entityIds) => completeStep(entityIds)}
-            onSkip={skipStep}
-          />
-        )
-
-      case 'experiments':
-        return (
-          <ExperimentStep
-            themes={state.createdThemes}
-            defaultLagWeeks={defaultLagWeeks}
-            onCreateAction={(type, parentId, data) => createAction(type, parentId, data)}
-            onNext={(entityIds) => completeStep(entityIds)}
-            onSkip={skipStep}
-          />
-        )
-
-      case 'complete':
-        return (
-          <CompleteStep
-            progress={state.progress}
-            themesCount={state.createdThemes.length}
-            season={state.season}
-            onComplete={() => {
-              completeStep()
-            }}
-          />
-        )
-
-      default:
-        return null
-    }
-  }
-
   return (
-    <div style={{ width: '100%', maxWidth: '560px', margin: '0 auto', padding: '0 var(--space-6)' }}>
-      <OnboardingProgress currentStep={state.currentStep} progress={state.progress} />
-      <div style={{ minHeight: '500px' }}>{renderStep()}</div>
+    <div style={{ width: '100%', maxWidth: '760px', margin: '0 auto', padding: '0 var(--space-6)' }}>
+      {state.error ? (
+        <div
+          style={{
+            marginBottom: 'var(--space-4)',
+            borderRadius: 10,
+            padding: 'var(--space-3) var(--space-4)',
+            background: 'rgba(220, 38, 38, 0.08)',
+            border: '1px solid rgba(220, 38, 38, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--color-critical)' }}>{state.error}</p>
+          <button
+            type="button"
+            style={{
+              border: 0,
+              background: 'transparent',
+              color: 'var(--color-critical)',
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+            onClick={clearError}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      <Stepper
+        steps={steps}
+        currentStep={state.data.currentStep}
+        onStepChange={(step) => {
+          if (step > state.data.currentStep && !canAdvanceTo(step)) {
+            return
+          }
+          setCurrentStep(step)
+        }}
+        onFinalStepCompleted={async () => {
+          try {
+            await completeOnboarding()
+            navigate('/', { replace: true })
+          } catch {
+            // Error state is surfaced by the hook; keep user on this step.
+          }
+        }}
+        isNextDisabled={isNextDisabled}
+        isWorking={isWorking}
+        nextButtonText="Continue"
+        finalButtonText="Start my Kaizen"
+      />
     </div>
   )
 }

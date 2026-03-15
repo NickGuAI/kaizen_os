@@ -1,244 +1,169 @@
-// Seasons Page - Zen UI styled active bets, scoring panel, and analysis
+// Seasons Page — All seasons as big cards with progress
 import { useNavigate } from 'react-router-dom'
-import { useThemes, useActiveActions, useGlobalVetoes } from '../hooks/useCards'
-import type { Card } from '../lib/api'
-import { useActiveSeason } from '../hooks/useSeasons'
-import { useEffect, useState } from 'react'
-import { api } from '../lib/api'
+import { useSeasons } from '../hooks/useSeasons'
+import { Button } from '../components/ui'
 import { AppLayout } from '../components/layout'
-
-interface ConditionData {
-  conditionScore: number
-  totalExposure?: number
-  lastActivity?: string | null
-}
 
 export default function SeasonsPage() {
   const navigate = useNavigate()
-  const { data: themes } = useThemes()
-  const { data: season } = useActiveSeason()
-  const { data: activeActions } = useActiveActions()
-  const { data: vetos } = useGlobalVetoes()
-  const [conditions, setConditions] = useState<Record<string, ConditionData>>({})
-  const [expandedThemes, setExpandedThemes] = useState<Set<string>>(new Set())
+  const { data: seasons, isLoading } = useSeasons()
 
-  useEffect(() => {
-    const loadConditions = async () => {
-      try {
-        const data = await api.getAllConditions()
-        setConditions(data)
-      } catch (error) {
-        console.error('Failed to load conditions:', error)
-      }
-    }
-    loadConditions()
-  }, [themes])
-
-  const actionsByTheme = activeActions?.reduce((acc: Record<string, Card[]>, action: Card) => {
-    const themeId = action.parentId
-    if (themeId) {
-      if (!acc[themeId]) acc[themeId] = []
-      acc[themeId].push(action)
-    }
-    return acc
-  }, {} as Record<string, Card[]>) ?? {}
-
-  const toggleTheme = (themeId: string) => {
-    setExpandedThemes(prev => {
-      const next = new Set(prev)
-      if (next.has(themeId)) next.delete(themeId)
-      else next.add(themeId)
-      return next
-    })
-  }
-
-  const trippedVetos = vetos?.filter(v => v.status === 'completed') ?? []
-
-  const seasonProgress = season ? (() => {
-    const start = new Date(season.startDate)
-    const end = new Date(season.endDate)
-    const now = new Date()
-    const total = end.getTime() - start.getTime()
-    const elapsed = now.getTime() - start.getTime()
+  const getSeasonProgress = (startDate: string, endDate: string) => {
+    const start = new Date(startDate).getTime()
+    const end = new Date(endDate).getTime()
+    const now = Date.now()
+    const total = end - start
+    const elapsed = now - start
     return Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)))
-  })() : 0
-
-  const getConditionColor = (score: number) => {
-    if (score >= 70) return 'var(--color-success)'
-    if (score >= 40) return 'var(--color-warning)'
-    return 'var(--color-critical)'
   }
 
-  const getStatusStyle = (status: string) => {
-    if (status === 'in_progress') return { bg: 'rgba(39, 174, 96, 0.1)', color: 'var(--color-success)' }
-    if (status === 'not_started') return { bg: 'rgba(243, 156, 18, 0.1)', color: 'var(--color-warning)' }
-    return { bg: 'var(--color-sage-border-light)', color: 'var(--color-text-muted)' }
+  const getWeekProgress = (startDate: string, durationWeeks: number) => {
+    const start = new Date(startDate).getTime()
+    const now = Date.now()
+    const weeksPassed = Math.floor((now - start) / (7 * 24 * 60 * 60 * 1000))
+    return Math.max(0, Math.min(weeksPassed + 1, durationWeeks))
   }
+
+  const getStatus = (isActive: boolean, endDate: string) => {
+    if (isActive) return { label: 'Active', bg: 'rgba(39, 174, 96, 0.1)', color: 'var(--color-success)' }
+    if (new Date(endDate) < new Date()) return { label: 'Completed', bg: 'var(--color-sage-light)', color: 'var(--color-text-secondary)' }
+    return { label: 'Inactive', bg: 'rgba(243, 156, 18, 0.1)', color: 'var(--color-warning)' }
+  }
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p className="text-muted">Loading...</p>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  // Sort: active first, then by start date descending
+  const sorted = [...(seasons || [])].sort((a, b) => {
+    if (a.isActive && !b.isActive) return -1
+    if (!a.isActive && b.isActive) return 1
+    return new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+  })
 
   return (
     <AppLayout>
-      <div style={{ padding: 'var(--space-6)', maxWidth: '1200px', margin: '0 auto', overflowY: 'auto', flex: 1 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-6)' }}>
-          {/* Left Column: Active Bets by Theme */}
-          <div>
-            <h2 className="text-base font-semibold" style={{ marginBottom: 'var(--space-4)' }}>Active Actions by Theme</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              {themes?.map(theme => {
-                const themeActions = actionsByTheme[theme.id] ?? []
-                const isExpanded = expandedThemes.has(theme.id)
-                const condition = conditions[theme.id]?.conditionScore ?? 0
-
-                return (
-                  <div key={theme.id} style={{
-                    background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--color-sage-border-light)',
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)', overflow: 'hidden',
-                  }}>
-                    <button
-                      onClick={() => toggleTheme(theme.id)}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: 'var(--space-4)', background: 'none', border: 'none', cursor: 'pointer',
-                        transition: 'background 0.2s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                        <span style={{ fontSize: '20px' }}>🎯</span>
-                        <span className="font-medium">{theme.title}</span>
-                        <span style={{
-                          padding: '2px 8px', fontSize: '11px', fontWeight: 600,
-                          background: 'rgba(107, 127, 215, 0.1)', color: '#6B7FD7',
-                          borderRadius: '10px',
-                        }}>{themeActions.length} actions</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                        <div style={{ width: '60px', height: '6px', background: 'var(--color-sage-border-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${condition}%`, background: getConditionColor(condition), transition: 'width 0.3s ease' }} />
-                        </div>
-                        <span className="text-sm text-secondary" style={{ width: '36px' }}>{condition}%</span>
-                        <span style={{ color: 'var(--color-text-muted)' }}>{isExpanded ? '▼' : '▶'}</span>
-                      </div>
-                    </button>
-
-                    {isExpanded && themeActions.length > 0 && (
-                      <div style={{ borderTop: '1px solid var(--color-sage-border-light)', padding: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                        {themeActions.map(action => {
-                          const statusStyle = getStatusStyle(action.status)
-                          return (
-                            <div
-                              key={action.id}
-                              onClick={() => navigate(`/contract/${action.id}`)}
-                              style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                padding: 'var(--space-3)', borderRadius: 'var(--radius-md)',
-                                background: 'var(--color-bg)', cursor: 'pointer',
-                                transition: 'background 0.2s ease',
-                              }}
-                            >
-                              <div>
-                                <div className="font-medium" style={{ color: 'var(--color-text)' }}>{action.title}</div>
-                                {action.description && (
-                                  <div className="text-xs text-muted" style={{ marginTop: '2px' }}>{action.description}</div>
-                                )}
-                              </div>
-                              <span style={{
-                                padding: '4px 10px', fontSize: '11px', fontWeight: 600,
-                                background: statusStyle.bg, color: statusStyle.color,
-                                borderRadius: '8px', textTransform: 'uppercase', letterSpacing: '0.05em',
-                              }}>{action.status.replace('_', ' ')}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                    {isExpanded && themeActions.length === 0 && (
-                      <div style={{ borderTop: '1px solid var(--color-sage-border-light)', padding: 'var(--space-4)', textAlign: 'center' }}>
-                        <span className="text-sm text-muted">No active actions for this theme</span>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Right Column: Scoring & Analysis */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-            {/* Scoring Panel */}
-            <div style={{
-              background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--color-sage-border-light)',
-              padding: 'var(--space-5)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            }}>
-              <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>📈 Condition Scores</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {themes?.map(theme => {
-                  const condition = conditions[theme.id]?.conditionScore ?? 0
-                  return (
-                    <div key={theme.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                      <span className="text-sm" style={{ width: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{theme.title}</span>
-                      <div style={{ flex: 1, height: '8px', background: 'var(--color-sage-border-light)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${condition}%`, background: getConditionColor(condition), transition: 'width 0.3s ease' }} />
-                      </div>
-                      <span className="text-sm font-medium" style={{ width: '36px', textAlign: 'right' }}>{condition}%</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Analysis Panel */}
-            <div style={{
-              background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--color-sage-border-light)',
-              padding: 'var(--space-5)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-            }}>
-              <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>📊 Analysis</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="text-sm text-secondary">Total Active Actions</span>
-                  <span className="font-semibold" style={{ color: '#6B7FD7' }}>{activeActions?.length ?? 0}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="text-sm text-secondary">Themes with Actions</span>
-                  <span className="font-semibold" style={{ color: '#9B59B6' }}>{Object.keys(actionsByTheme).length}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="text-sm text-secondary">Guardrails Active</span>
-                  <span className="font-semibold" style={{ color: 'var(--color-success)' }}>{(vetos?.length ?? 0) - trippedVetos.length}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span className="text-sm text-secondary">Guardrails Tripped</span>
-                  <span className="font-semibold" style={{ color: trippedVetos.length > 0 ? 'var(--color-critical)' : 'var(--color-text-muted)' }}>
-                    {trippedVetos.length}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Season Progress */}
-            {season && (
-              <div style={{
-                background: 'var(--color-card)', borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--color-sage-border-light)',
-                padding: 'var(--space-5)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
-              }}>
-                <h3 className="font-semibold" style={{ marginBottom: 'var(--space-4)' }}>🗓️ Season Progress</h3>
-                <div style={{ textAlign: 'center', marginBottom: 'var(--space-4)' }}>
-                  <div className="text-2xl font-bold" style={{ color: '#9B59B6' }}>{seasonProgress}%</div>
-                  <div className="text-xs text-muted" style={{ marginTop: '2px' }}>{season.name}</div>
-                </div>
-                <div style={{ height: '8px', background: 'var(--color-sage-border-light)', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${seasonProgress}%`, background: 'linear-gradient(90deg, #9B59B6, #8E44AD)', transition: 'width 0.5s ease' }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)' }}>
-                  <span className="text-xs text-muted">{new Date(season.startDate).toLocaleDateString()}</span>
-                  <span className="text-xs text-muted">{new Date(season.endDate).toLocaleDateString()}</span>
-                </div>
-              </div>
-            )}
-          </div>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'var(--space-6)', maxWidth: '900px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+          <h1 className="text-2xl font-semibold">Seasons</h1>
+          <Button variant="primary" onClick={() => navigate('/seasons/new')}>
+            + New Season
+          </Button>
         </div>
+
+        {sorted.length === 0 ? (
+          <div className="card-static" style={{ textAlign: 'center', padding: 'var(--space-12)' }}>
+            <p className="text-lg font-medium" style={{ marginBottom: 'var(--space-2)' }}>No seasons yet</p>
+            <p className="text-sm text-muted" style={{ marginBottom: 'var(--space-5)' }}>
+              Create your first season to start planning and tracking progress.
+            </p>
+            <Button variant="primary" onClick={() => navigate('/seasons/new')}>
+              Create Season
+            </Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+            {sorted.map(season => {
+              const progress = getSeasonProgress(season.startDate, season.endDate)
+              const week = getWeekProgress(season.startDate, season.durationWeeks)
+              const status = getStatus(season.isActive, season.endDate)
+              const totalBudget = season.durationWeeks * season.utilityRate
+              const allocatedThemes = Object.keys(season.themeAllocations || {}).length
+              const totalAllocation = Object.values(season.themeAllocations || {}).reduce((s, v) => s + v, 0)
+
+              return (
+                <div
+                  key={season.id}
+                  className="card"
+                  onClick={() => navigate(`/seasons/${season.id}`)}
+                  style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}
+                >
+                  {/* Header */}
+                  <div style={{
+                    padding: 'var(--space-5) var(--space-6)',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                  }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-1)' }}>
+                        <h2 className="text-lg font-semibold">{season.name}</h2>
+                        <span style={{
+                          padding: '3px 10px', fontSize: 11, fontWeight: 600,
+                          background: status.bg, color: status.color,
+                          borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.05em',
+                        }}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted">
+                        {new Date(season.startDate).toLocaleDateString()} — {new Date(season.endDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="text-2xl font-bold" style={{ color: 'var(--color-sage)' }}>{progress}%</div>
+                      <div className="text-xs text-muted">Week {week} of {season.durationWeeks}</div>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div style={{ padding: '0 var(--space-6)' }}>
+                    <div style={{ height: 8, background: 'var(--color-sage-border-light)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%', width: `${progress}%`,
+                        background: season.isActive
+                          ? 'linear-gradient(90deg, var(--color-sage), #7a8359)'
+                          : 'var(--color-text-muted)',
+                        borderRadius: 4,
+                        transition: 'width 0.5s ease',
+                      }} />
+                    </div>
+                  </div>
+
+                  {/* Stats Row */}
+                  <div style={{
+                    padding: 'var(--space-4) var(--space-6) var(--space-5)',
+                    display: 'flex', gap: 'var(--space-6)',
+                    marginTop: 'var(--space-3)',
+                  }}>
+                    <div>
+                      <div className="text-xs text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                        Utility Rate
+                      </div>
+                      <div className="text-sm font-semibold">{season.utilityRate}h / week</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                        Total Budget
+                      </div>
+                      <div className="text-sm font-semibold">{totalBudget}h</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                        Themes
+                      </div>
+                      <div className="text-sm font-semibold">{allocatedThemes} allocated</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                        Allocation
+                      </div>
+                      <div className="text-sm font-semibold" style={{
+                        color: totalAllocation === 1 ? 'var(--color-success)' : totalAllocation > 1 ? 'var(--color-critical)' : 'var(--color-warning)',
+                      }}>
+                        {Math.round(totalAllocation * 100)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </AppLayout>
   )

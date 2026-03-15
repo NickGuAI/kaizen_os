@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
@@ -18,6 +18,12 @@ const queryClient = new QueryClient({
   },
 })
 
+function PersistentBackgroundMusic() {
+  const audioRef = useRef<HTMLAudioElement>(null)
+
+  return <audio ref={audioRef} src="/assets/zenkai.wav" loop preload="none" />
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <PostHogProvider
@@ -31,6 +37,7 @@ createRoot(document.getElementById('root')!).render(
     >
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          <PersistentBackgroundMusic />
           <BrowserRouter>
             <App />
           </BrowserRouter>

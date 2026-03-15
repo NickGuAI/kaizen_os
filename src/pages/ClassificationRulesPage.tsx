@@ -27,7 +27,7 @@ export default function ClassificationRulesPage() {
   const [loading, setLoading] = useState(true);
   const [editingRule, setEditingRule] = useState<ClassificationRule | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  
+
   // Form state
   const [formMatchType, setFormMatchType] = useState('title_contains');
   const [formMatchValue, setFormMatchValue] = useState('');
@@ -43,7 +43,7 @@ export default function ClassificationRulesPage() {
           apiFetch('/api/calendar/rules'),
           apiFetch('/api/cards/active-actions'),
         ]);
-        
+
         if (rulesRes.ok) setRules(await rulesRes.json());
         if (actionsRes.ok) setActions(await actionsRes.json());
       } catch (error) {
@@ -76,7 +76,7 @@ export default function ClassificationRulesPage() {
 
   const handleSave = async () => {
     if (!formMatchValue.trim() || !formCardId) return;
-    
+
     setSaving(true);
     try {
       const payload = {
@@ -87,10 +87,10 @@ export default function ClassificationRulesPage() {
         isActive: formIsActive,
       };
 
-      const url = editingRule 
+      const url = editingRule
         ? `/api/calendar/rules/${editingRule.id}`
         : '/api/calendar/rules';
-      
+
       const res = await apiFetch(url, {
         method: editingRule ? 'PUT' : 'POST',
         headers: {
@@ -120,13 +120,13 @@ export default function ClassificationRulesPage() {
 
   const handleDelete = async (ruleId: string) => {
     if (!confirm('Delete this classification rule?')) return;
-    
+
     try {
       const res = await apiFetch(`/api/calendar/rules/${ruleId}`, {
         method: 'DELETE',
-        
+
       });
-      
+
       if (res.ok) {
         setRules(prev => prev.filter(r => r.id !== ruleId));
       }
@@ -144,7 +144,7 @@ export default function ClassificationRulesPage() {
                   },
         body: JSON.stringify({ isActive: !rule.isActive }),
       });
-      
+
       if (res.ok) {
         const updated = await res.json();
         setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
@@ -187,7 +187,7 @@ export default function ClassificationRulesPage() {
   }
 
   return (
-    <AppLayout><div style={{ flex: 1, overflowY: 'auto' }}>
+    <AppLayout><div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <button
@@ -219,9 +219,9 @@ export default function ClassificationRulesPage() {
 
           {/* Create/Edit Form */}
           {showCreateForm && (
-            <div style={{ 
-              padding: 'var(--space-5)', 
-              background: 'var(--color-sage-light)', 
+            <div style={{
+              padding: 'var(--space-5)',
+              background: 'var(--color-sage-light)',
               borderRadius: 8,
               marginBottom: 'var(--space-5)',
               border: '1px solid var(--color-sage-border)',
@@ -229,7 +229,7 @@ export default function ClassificationRulesPage() {
               <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 'var(--space-4)' }}>
                 {editingRule ? 'Edit Rule' : 'Create New Rule'}
               </h3>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
                 <Select
                   label="Match Type"
@@ -297,8 +297,8 @@ export default function ClassificationRulesPage() {
 
               <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'flex-end' }}>
                 <Button variant="secondary" onClick={resetForm}>Cancel</Button>
-                <Button 
-                  variant="primary" 
+                <Button
+                  variant="primary"
                   onClick={handleSave}
                   disabled={saving || !formMatchValue.trim() || !formCardId}
                 >
@@ -310,9 +310,9 @@ export default function ClassificationRulesPage() {
 
           {/* Rules List */}
           {rules.length === 0 ? (
-            <div style={{ 
-              padding: 'var(--space-8)', 
-              textAlign: 'center', 
+            <div style={{
+              padding: 'var(--space-8)',
+              textAlign: 'center',
               color: 'var(--color-text-muted)',
               background: 'var(--color-bg-secondary)',
               borderRadius: 8,
@@ -341,10 +341,10 @@ export default function ClassificationRulesPage() {
                 >
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                      <span style={{ 
-                        fontSize: 11, 
-                        padding: '3px 8px', 
-                        background: 'var(--color-sage-light)', 
+                      <span style={{
+                        fontSize: 11,
+                        padding: '3px 8px',
+                        background: 'var(--color-sage-light)',
                         borderRadius: 4,
                         color: 'var(--color-text-secondary)',
                         fontWeight: 500,
@@ -358,13 +358,13 @@ export default function ClassificationRulesPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
                       <span style={{ color: 'var(--color-text-muted)' }}>→</span>
-                      <span 
-                        style={{ 
-                          width: 10, 
-                          height: 10, 
-                          borderRadius: 3, 
+                      <span
+                        style={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: 3,
                           background: getActionTypeColor(rule.card.unitType),
-                        }} 
+                        }}
                       />
                       <span style={{ fontWeight: 500 }}>{rule.card.title}</span>
                       <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
@@ -377,7 +377,7 @@ export default function ClassificationRulesPage() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       onClick={() => handleToggleActive(rule)}

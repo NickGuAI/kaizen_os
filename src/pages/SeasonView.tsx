@@ -139,7 +139,7 @@ export default function SeasonView() {
 
   return (
     <AppLayout>
-      <div style={{ padding: '16px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px' }}>
         {/* Page Header */}
         <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
           <button
@@ -149,13 +149,15 @@ export default function SeasonView() {
               color: 'var(--color-text-muted)', fontSize: '14px',
             }}
           >
-            ← Back
+            {'← Back'}
           </button>
           <div>
-            <h1 className="text-lg font-semibold">{isCreateMode ? 'New Season' : (season?.name || 'Season')}</h1>
+            <h1 className="text-lg font-semibold">
+              {isCreateMode ? 'New Season' : (season?.name || 'Season')}
+            </h1>
             {!isCreateMode && (
               <p className="text-sm text-secondary">
-                {startDate && `${new Date(startDate).toLocaleDateString()}`} • Week {weekProgress} of {durationWeeks}
+                {startDate && `${new Date(startDate).toLocaleDateString()}`} {'•'} Week {weekProgress} of {durationWeeks}
               </p>
             )}
           </div>

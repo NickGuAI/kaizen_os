@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/authContext'
+import { CardNav } from '../components/layout/CardNav'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -46,61 +47,60 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="app" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: '100%', maxWidth: 420, padding: 24, background: '#0b0b0b', borderRadius: 12, border: '1px solid #1f2937' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8 }}>Welcome back</h1>
-        <p style={{ color: '#9ca3af', marginBottom: 24 }}>Sign in to continue to Kaizen OS.</p>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="login-page">
+      <CardNav variant="dark" />
+
+      <div className="login-card">
+        <div className="login-mark">K</div>
+        <h1 className="login-title">Welcome back</h1>
+        <p className="login-subtitle">Sign in to continue to Kaizen OS.</p>
+
+        <form onSubmit={handleSubmit} className="login-form">
           <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={submitting || loading || oauthSubmitting}
-            style={{
-              padding: '12px',
-              borderRadius: 8,
-              background: '#f9fafb',
-              color: '#111827',
-              fontWeight: 600,
-              border: '1px solid #e5e7eb',
-              cursor: 'pointer',
-            }}
+            className="login-google-btn"
           >
             {oauthSubmitting ? 'Connecting...' : 'Sign in with Google'}
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ flex: 1, height: 1, background: '#1f2937' }} />
-            <span style={{ fontSize: 12, color: '#6b7280' }}>or</span>
-            <span style={{ flex: 1, height: 1, background: '#1f2937' }} />
+
+          <div className="login-divider">
+            <span className="login-divider-line" />
+            <span className="login-divider-text">or</span>
+            <span className="login-divider-line" />
           </div>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>Email</span>
+
+          <label className="login-field">
+            <span className="login-label">Email</span>
             <input
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #1f2937', background: '#0f172a', color: '#f9fafb' }}
+              className="login-input"
             />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>Password</span>
+
+          <label className="login-field">
+            <span className="login-label">Password</span>
             <input
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #1f2937', background: '#0f172a', color: '#f9fafb' }}
+              className="login-input"
             />
           </label>
-          {error && (
-            <div style={{ color: '#f87171', fontSize: 12 }}>{error}</div>
-          )}
+
+          {error && <div className="login-error">{error}</div>}
+
           <button
             type="submit"
             disabled={submitting || loading || oauthSubmitting}
-            style={{ padding: '12px', borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 600, border: 'none', cursor: 'pointer' }}
+            className="login-submit-btn"
           >
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>

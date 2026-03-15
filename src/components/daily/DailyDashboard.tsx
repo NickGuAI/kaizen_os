@@ -46,6 +46,13 @@ function buildEventKey(event: CalendarEvent): string | undefined {
   return `gcal:${event.accountId}:${event.calendarId}:${event.id}`
 }
 
+// Stable empty arrays to prevent infinite re-render loops.
+// useQuery's `= []` default creates a new reference every render
+// while loading, which triggers useEffect → setState → re-render → loop.
+const EMPTY_WORK_ITEMS: WorkItemWithOverlays[] = []
+const EMPTY_EVENTS: CalendarEvent[] = []
+const EMPTY_TOMORROW: WorkItemWithOverlays[] = []
+
 export function DailyDashboard({ date, themes }: DailyDashboardProps) {
   const completeMutation = useCompleteWorkItem(date)
   const focusMutation = useSetDailyFocus(date)
@@ -58,7 +65,7 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
   const completeParkingMutation = useCompleteParkingItem()
   const { data: seasonVetoes = [], isLoading: loadingSeasonVetoes } = useActiveSeasonVetoes()
 
-  const { data: workItems = [], isLoading: loadingWorkItems } = useQuery<WorkItemWithOverlays[]>({
+  const { data: workItems = EMPTY_WORK_ITEMS, isLoading: loadingWorkItems } = useQuery<WorkItemWithOverlays[]>({
     queryKey: ['workitems', 'day', date],
     queryFn: async () => {
       const res = await apiFetch(`/api/workitems/day?date=${date}`, {})
@@ -67,7 +74,7 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
     },
   })
 
-  const { data: events = [], isLoading: loadingEvents } = useQuery<CalendarEvent[]>({
+  const { data: events = EMPTY_EVENTS, isLoading: loadingEvents } = useQuery<CalendarEvent[]>({
     queryKey: ['calendar', 'events', 'day', date],
     queryFn: async () => {
       const res = await apiFetch(`/api/calendar/events/day?date=${date}`, {})
@@ -107,7 +114,7 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
     },
   })
 
-  const { data: tomorrowWorkItems = [] } = useQuery<WorkItemWithOverlays[]>({
+  const { data: tomorrowWorkItems = EMPTY_TOMORROW } = useQuery<WorkItemWithOverlays[]>({
     queryKey: ['workitems', 'day', tomorrowDate],
     queryFn: async () => {
       const res = await apiFetch(`/api/workitems/day?date=${tomorrowDate}`, {})
@@ -150,10 +157,11 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
   useEffect(() => {
     setOrderedSnackKeys((prev) => {
       const nextKeys = filteredPlaylist.map((item) => item.key)
-      if (nextKeys.length === 0) return []
+      if (nextKeys.length === 0) return prev.length === 0 ? prev : []
 
       const kept = prev.filter((key) => nextKeys.includes(key))
       const missing = nextKeys.filter((key) => !kept.includes(key))
+      if (missing.length === 0 && kept.length === prev.length) return prev
       return [...kept, ...missing]
     })
   }, [filteredPlaylist])

@@ -152,7 +152,7 @@ export default function CardEditPage() {
 
   return (
     <AppLayout>
-      <div style={{ overflowY: 'auto', flex: 1 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <header
         style={{
           padding: 'var(--space-6)',

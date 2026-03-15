@@ -2,6 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { getAuthProvider } from '../../auth'
 import { requireAuthV2 } from '../middleware/authProvider'
 import { clearSessionCookie } from '../middleware/auth'
+import { encryptToken } from '../../lib/crypto'
+import { prisma } from '../../lib/db'
+import { google } from 'googleapis'
 
 const router = Router()
 
@@ -286,6 +289,70 @@ router.get('/me', requireAuthV2, (req: Request, res: Response) => {
       timezone: user!.timezone ?? null,
     },
   })
+})
+
+// Auto-connect Google Calendar account from Supabase provider tokens.
+// Called by AuthCallbackPage after Google OAuth sign-up/login so the
+// user doesn't have to go through a separate calendar connection flow.
+router.post('/auto-connect-calendar', requireAuthV2, async (req: Request, res: Response) => {
+  const { providerToken, providerRefreshToken, email } = req.body as {
+    providerToken?: string
+    providerRefreshToken?: string
+    email?: string
+  }
+  const userId = req.user!.id
+
+  if (!providerToken || !email) {
+    return res.status(400).json({ error: 'providerToken and email are required' })
+  }
+
+  try {
+    // Verify the token works by fetching user info
+    const oauth2Client = new google.auth.OAuth2()
+    oauth2Client.setCredentials({ access_token: providerToken })
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client })
+    const { data: userInfo } = await oauth2.userinfo.get()
+    const googleEmail = userInfo.email || email
+
+    const SCOPES = [
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/tasks',
+    ]
+
+    await prisma.calendarAccount.upsert({
+      where: {
+        userId_provider_email: {
+          userId,
+          provider: 'google',
+          email: googleEmail,
+        },
+      },
+      update: {
+        accessTokenEncrypted: encryptToken(providerToken),
+        ...(providerRefreshToken && {
+          refreshTokenEncrypted: encryptToken(providerRefreshToken),
+        }),
+        scopes: SCOPES,
+      },
+      create: {
+        userId,
+        provider: 'google',
+        email: googleEmail,
+        accessTokenEncrypted: encryptToken(providerToken),
+        refreshTokenEncrypted: providerRefreshToken ? encryptToken(providerRefreshToken) : '',
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        scopes: SCOPES,
+      },
+    })
+
+    console.log(`[auth] Auto-connected calendar for ${googleEmail} (user ${userId})`)
+    return res.json({ connected: true, email: googleEmail })
+  } catch (error) {
+    console.error('[auth] Auto-connect calendar failed:', error)
+    return res.json({ connected: false })
+  }
 })
 
 export default router

@@ -3,12 +3,30 @@ import { useAuth } from '../lib/authContext'
 import { useUserSettings } from '../hooks/useUserSettings'
 import { useThemes } from '../hooks/useCards'
 
+export function getOnboardingGateState(params: {
+  completedAt: string | null | undefined
+  hasThemes?: boolean
+  pathname: string
+}) {
+  const onboardingComplete = Boolean(params.completedAt)
+  const needsOnboarding = !onboardingComplete && !params.hasThemes
+  const isOnOnboardingPage = params.pathname === '/onboarding'
+
+  return {
+    needsOnboarding,
+    isOnOnboardingPage,
+    shouldRedirectToOnboarding: needsOnboarding && !isOnOnboardingPage,
+  }
+}
+
 export default function ProtectedRoute() {
   const { user, loading: authLoading } = useAuth()
   const location = useLocation()
   const isAuthReady = !authLoading && !!user
   const { data: settings, isLoading: settingsLoading } = useUserSettings({ enabled: isAuthReady })
-  const { data: themes, isLoading: themesLoading } = useThemes({ enabled: isAuthReady })
+  const onboardingCompletedAt = settings?.onboarding_progress?.completedAt
+  const shouldLoadThemes = isAuthReady && !settingsLoading && !onboardingCompletedAt
+  const { data: themes, isLoading: themesLoading } = useThemes({ enabled: shouldLoadThemes })
 
   if (authLoading) {
     return <div className="app" style={{ padding: 24 }}>Loading...</div>
@@ -18,20 +36,24 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
 
-  // Wait for settings and themes to load before checking onboarding
-  if (settingsLoading || themesLoading) {
+  // Wait for settings to load before checking onboarding.
+  if (settingsLoading) {
     return <div className="app" style={{ padding: 24 }}>Loading...</div>
   }
 
-  // Check if user needs onboarding (no themes and onboarding not completed)
-  // completedAt is null by default, becomes a date string when onboarding finishes
-  const onboardingComplete = Boolean(settings?.onboarding_progress?.completedAt)
-  const hasThemes = themes && themes.length > 0
-  const needsOnboarding = !hasThemes && !onboardingComplete
-  const isOnOnboardingPage = location.pathname === '/onboarding'
+  // Only load themes for legacy compatibility when completion flag is missing.
+  if (shouldLoadThemes && themesLoading) {
+    return <div className="app" style={{ padding: 24 }}>Loading...</div>
+  }
+
+  const gate = getOnboardingGateState({
+    completedAt: onboardingCompletedAt,
+    hasThemes: (themes?.length || 0) > 0,
+    pathname: location.pathname,
+  })
 
   // Redirect to onboarding if needed (unless already there)
-  if (needsOnboarding && !isOnOnboardingPage) {
+  if (gate.shouldRedirectToOnboarding) {
     return <Navigate to="/onboarding" replace />
   }
 
