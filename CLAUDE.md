@@ -119,6 +119,17 @@ return taskDueDate >= startDate && taskDueDate <= endDate;
 - **Pattern**: `<AppLayout><div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '...' }}>...</div></AppLayout>`
 - **Checklist when adding/editing pages**: Settings, Settings/rules, Seasons, Seasons/:id, Theme/:id, etc. — if it uses AppLayout and has scrollable content, add the wrapper.
 
+### Onboarding Forms — Local State, Persist on Terminal Action Only
+- **What went wrong**: A 4-step onboarding form had 8 server endpoints. Debounced auto-save fired PUT on every keystroke (450ms). Server responses replaced entire local state, wiping user input mid-type. Clicking Continue triggered 2 API calls (PUT /identity + PUT /state). Synthesize and Complete read stale DB instead of accepting form data. Classic SIMPLED violation: over-engineered a simple form into a distributed state machine.
+- **Current design**:
+  - `updateSeed`/`updateStudent`/`updateGaze` update local React state ONLY — zero API calls.
+  - `setCurrentStep` (Continue button) is purely local — zero API calls.
+  - Client-side validation (mirroring server min-length rules) gates the Continue button.
+  - `synthesizeExperiment` sends `{seed, student, gaze}` in POST body → server persists form data + experiment result.
+  - `completeOnboarding` sends `{seed, student, gaze}` in POST body → server persists form data + marks complete.
+  - `GET /state` loads once on mount (to resume incomplete onboarding). That's the only read.
+- **Rule**: For multi-step forms, the server is a persistence layer, not a state machine. Hold state locally, send the full form payload on terminal actions (Synthesize, Complete). Never round-trip through the server for step navigation or form validation.
+
 ### Calendar Push Notifications: Watch Channels Only (No Pub/Sub)
 - **Google Workspace Events API does NOT support Google Calendar** — only Chat, Drive, Meet
 - `calendar-api-push@system.gserviceaccount.com` does not exist; Pub/Sub IAM binding for Calendar will always fail

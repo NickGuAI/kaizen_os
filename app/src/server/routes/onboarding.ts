@@ -846,14 +846,16 @@ router.post('/synthesize-experiment', async (req: Request, res: Response) => {
   }
 
   try {
+    const body = toObject(req.body)
     const [profile, accounts] = await Promise.all([
       ensureProfileForWrite(userId),
       getConnectedAccounts(userId),
     ])
 
-    const seed = sanitizeSeed(toObject(profile.seed))
-    const student = sanitizeStudent(toObject(profile.student))
-    const gaze = sanitizeGaze(toObject(profile.gaze))
+    // Use form data from request body if provided, fall back to DB.
+    const seed = sanitizeSeed(toObject(body.seed ?? profile.seed))
+    const student = sanitizeStudent(toObject(body.student ?? profile.student))
+    const gaze = sanitizeGaze(toObject(body.gaze ?? profile.gaze))
 
     const validation = computeValidation({ seed, student, gaze }, accounts)
 
@@ -915,6 +917,9 @@ router.post('/synthesize-experiment', async (req: Request, res: Response) => {
       const updatedProfile = await prisma.onboardingProfile.update({
         where: { userId },
         data: {
+          seed: asJsonValue(seed),
+          student: asJsonValue(student),
+          gaze: asJsonValue(gaze),
           kaizenExperiment: asJsonValue(payload),
           synthesisStatus: 'ready',
         },
@@ -956,14 +961,16 @@ router.post('/complete', async (req: Request, res: Response) => {
   }
 
   try {
+    const body = toObject(req.body)
     const [profile, accounts] = await Promise.all([
       ensureProfileForWrite(userId),
       getConnectedAccounts(userId),
     ])
 
-    const seed = sanitizeSeed(toObject(profile.seed))
-    const student = sanitizeStudent(toObject(profile.student))
-    const gaze = sanitizeGaze(toObject(profile.gaze))
+    // Use form data from request body if provided, fall back to DB.
+    const seed = sanitizeSeed(toObject(body.seed ?? profile.seed))
+    const student = sanitizeStudent(toObject(body.student ?? profile.student))
+    const gaze = sanitizeGaze(toObject(body.gaze ?? profile.gaze))
 
     const validation = computeValidation({ seed, student, gaze }, accounts)
 
@@ -987,6 +994,9 @@ router.post('/complete', async (req: Request, res: Response) => {
       prisma.onboardingProfile.update({
         where: { userId },
         data: {
+          seed: asJsonValue(seed),
+          student: asJsonValue(student),
+          gaze: asJsonValue(gaze),
           completedAt: new Date(completedAt),
           currentStep: 'gaze',
         },

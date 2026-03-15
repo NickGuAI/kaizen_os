@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button, Input, Textarea } from '../../ui'
 import { GazeData } from '../hooks/useOnboarding'
 
@@ -118,6 +119,10 @@ export function GazeStep({
   onChange,
   onSynthesize,
 }: GazeStepProps) {
+  // Keep raw string so spaces aren't eaten by trim+filter on every keystroke.
+  // Only parse to array on blur.
+  const [nonNegotiablesRaw, setNonNegotiablesRaw] = useState(value.nonNegotiables.join(', '))
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <Textarea
@@ -139,13 +144,9 @@ export function GazeStep({
       <Input
         label="Non-negotiables"
         placeholder="e.g. 7h sleep, weekly review, no meetings before noon"
-        value={value.nonNegotiables.join(', ')}
-        onChange={(event) =>
-          onChange({
-            ...value,
-            nonNegotiables: parseCommaSeparatedValues(event.target.value),
-          })
-        }
+        value={nonNegotiablesRaw}
+        onChange={(event) => setNonNegotiablesRaw(event.target.value)}
+        onBlur={() => onChange({ ...value, nonNegotiables: parseCommaSeparatedValues(nonNegotiablesRaw) })}
       />
 
       <p style={{ margin: 0, marginTop: '-8px', fontSize: 12, color: 'var(--color-text-tertiary)' }}>

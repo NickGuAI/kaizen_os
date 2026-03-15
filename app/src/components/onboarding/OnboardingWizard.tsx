@@ -165,11 +165,11 @@ export function OnboardingWizard() {
       <Stepper
         steps={steps}
         currentStep={state.data.currentStep}
-        onStepChange={async (step) => {
+        onStepChange={(step) => {
           if (step > state.data.currentStep && !canAdvanceTo(step)) {
             return
           }
-          await setCurrentStep(step)
+          setCurrentStep(step)
         }}
         onFinalStepCompleted={async () => {
           try {

@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useDebouncedCallback } from 'use-debounce'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { apiFetch } from '../../../lib/apiFetch'
 
 export const ONBOARDING_STEPS = ['connect', 'seed', 'student', 'gaze'] as const
@@ -113,13 +112,10 @@ interface OnboardingLocalState {
 export interface UseOnboardingReturn {
   state: OnboardingLocalState
   currentStepName: OnboardingStep
-  setCurrentStep: (step: number) => Promise<void>
+  setCurrentStep: (step: number) => void
   updateSeed: (seed: SeedData) => void
   updateStudent: (student: StudentData) => void
   updateGaze: (gaze: GazeData) => void
-  saveSeedData: (seed: SeedData) => Promise<void>
-  saveStudentData: (student: StudentData) => Promise<void>
-  saveGazeData: (gaze: GazeData) => Promise<void>
   refreshState: () => Promise<void>
   refreshConnectStatus: () => Promise<void>
   startConnection: (provider?: Provider) => Promise<void>
@@ -298,8 +294,8 @@ export function normalizeOnboardingState(payload: unknown): OnboardingState {
   }
 }
 
-async function getOnboardingState(): Promise<OnboardingState> {
-  const response = await apiFetch('/api/onboarding/state')
+async function getOnboardingState(signal?: AbortSignal): Promise<OnboardingState> {
+  const response = await apiFetch('/api/onboarding/state', { signal })
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}))
     throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to load onboarding state')
@@ -308,54 +304,52 @@ async function getOnboardingState(): Promise<OnboardingState> {
   return normalizeOnboardingState(await response.json())
 }
 
-async function saveOnboardingState(
-  patch: Partial<{
-    currentStep: number
-    provider: Provider
-  }>
-): Promise<OnboardingState> {
-  const response = await apiFetch('/api/onboarding/state', {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(patch),
-  })
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}))
-    throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to save onboarding state')
-  }
-
-  return normalizeOnboardingState(await response.json())
-}
-
-type IdentitySection = 'seed' | 'student' | 'gaze'
-type IdentityPayload = SeedData | StudentData | GazeData
-
-async function saveOnboardingIdentity(section: IdentitySection, data: IdentityPayload): Promise<OnboardingState> {
-  const response = await apiFetch('/api/onboarding/identity', {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      section,
-      data,
-    }),
-  })
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}))
-    throw new Error(typeof payload.error === 'string' ? payload.error : `Failed to save ${section} section`)
-  }
-
-  const payload = toObject(await response.json())
-  return normalizeOnboardingState(payload.state)
-}
-
 export function canAdvanceToStep(maxAllowedStep: number, requestedStep: number): boolean {
   return requestedStep <= maxAllowedStep
+}
+
+// Client-side validation mirroring server rules — so Continue enables without any API call.
+function validateSeedLocal(seed: SeedData): string[] {
+  const errors: string[] = []
+  if ((seed.coreIdentity?.trim().length ?? 0) < 8) errors.push('Core identity must be at least 8 characters.')
+  if ((seed.narrative?.trim().length ?? 0) < 140) errors.push('Seed narrative must be at least 140 characters.')
+  return errors
+}
+
+function validateStudentLocal(student: StudentData): string[] {
+  const errors: string[] = []
+  if ((student.becoming?.trim().length ?? 0) < 12) errors.push('Future-state statement must be at least 12 characters.')
+  if ((student.horizon?.trim().length ?? 0) < 3) errors.push('Horizon is required.')
+  if ((student.narrative?.trim().length ?? 0) < 140) errors.push('Student narrative must be at least 140 characters.')
+  return errors
+}
+
+function validateGazeLocal(gaze: GazeData): string[] {
+  const errors: string[] = []
+  if ((gaze.desires?.trim().length ?? 0) < 120) errors.push('Desires draft must be at least 120 characters.')
+  if ((gaze.reflection?.trim().length ?? 0) < 180) errors.push('Reflection draft must be at least 180 characters.')
+  return errors
+}
+
+function computeLocalValidation(
+  data: OnboardingState
+): { stepValidation: Record<OnboardingStep, StepValidation>; maxAllowedStep: number } {
+  const connectErrors = data.connectState.connected ? [] : ['Connect at least one account to continue.']
+  const seedErrors = validateSeedLocal(data.seed)
+  const studentErrors = validateStudentLocal(data.student)
+  const gazeErrors = validateGazeLocal(data.gaze)
+
+  const stepValidation: Record<OnboardingStep, StepValidation> = {
+    connect: { isValid: connectErrors.length === 0, errors: connectErrors },
+    seed: { isValid: seedErrors.length === 0, errors: seedErrors },
+    student: { isValid: studentErrors.length === 0, errors: studentErrors },
+    gaze: { isValid: gazeErrors.length === 0, errors: gazeErrors },
+  }
+
+  if (!stepValidation.connect.isValid) return { stepValidation, maxAllowedStep: 0 }
+  if (!stepValidation.seed.isValid) return { stepValidation, maxAllowedStep: 1 }
+  if (!stepValidation.student.isValid) return { stepValidation, maxAllowedStep: 2 }
+  return { stepValidation, maxAllowedStep: 3 }
 }
 
 export function useOnboarding(): UseOnboardingReturn {
@@ -372,12 +366,26 @@ export function useOnboarding(): UseOnboardingReturn {
     setState((previous) => updater(previous))
   }, [])
 
+  const refreshStateAbortRef = useRef<AbortController | null>(null)
+
   const refreshState = useCallback(async () => {
+    if (refreshStateAbortRef.current) {
+      refreshStateAbortRef.current.abort()
+    }
+    const controller = new AbortController()
+    refreshStateAbortRef.current = controller
+
     mergeState((previous) => ({ ...previous, isLoading: true, error: null }))
     try {
-      const data = await getOnboardingState()
+      const data = await getOnboardingState(controller.signal)
+      if (refreshStateAbortRef.current !== controller) return
+      refreshStateAbortRef.current = null
       mergeState((previous) => ({ ...previous, isLoading: false, data }))
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      if (refreshStateAbortRef.current === controller) {
+        refreshStateAbortRef.current = null
+      }
       mergeState((previous) => ({
         ...previous,
         isLoading: false,
@@ -386,124 +394,57 @@ export function useOnboarding(): UseOnboardingReturn {
     }
   }, [mergeState])
 
+  // Load server state once on mount (to resume incomplete onboarding).
   useEffect(() => {
     refreshState()
+    return () => {
+      if (refreshStateAbortRef.current) {
+        refreshStateAbortRef.current.abort()
+      }
+    }
   }, [refreshState])
 
-  const savePatch = useCallback(
-    async (
-      patch: Partial<{
-        currentStep: number
-        provider: Provider
-      }>
-    ) => {
-      mergeState((previous) => ({ ...previous, isSaving: true, error: null }))
-
-      try {
-        const data = await saveOnboardingState(patch)
-        mergeState((previous) => ({ ...previous, isSaving: false, data }))
-      } catch (err) {
-        mergeState((previous) => ({
-          ...previous,
-          isSaving: false,
-          error: err instanceof Error ? err.message : 'Failed to save onboarding',
-        }))
-      }
-    },
-    [mergeState]
-  )
-
-  const saveIdentitySection = useCallback(
-    async (section: IdentitySection, data: IdentityPayload) => {
-      mergeState((previous) => ({ ...previous, isSaving: true, error: null }))
-
-      try {
-        const nextState = await saveOnboardingIdentity(section, data)
-        mergeState((previous) => ({ ...previous, isSaving: false, data: nextState }))
-      } catch (err) {
-        mergeState((previous) => ({
-          ...previous,
-          isSaving: false,
-          error: err instanceof Error ? err.message : `Failed to save ${section} section`,
-        }))
-      }
-    },
-    [mergeState]
-  )
-
-  const debouncedSaveSeed = useDebouncedCallback((seed: SeedData) => saveIdentitySection('seed', seed), 450)
-  const debouncedSaveStudent = useDebouncedCallback((student: StudentData) => saveIdentitySection('student', student), 450)
-  const debouncedSaveGaze = useDebouncedCallback((gaze: GazeData) => saveIdentitySection('gaze', gaze), 450)
-
+  // Step navigation is purely local. No API calls.
   const setCurrentStep = useCallback(
-    async (step: number) => {
+    (step: number) => {
       const clampedStep = Math.max(0, Math.min(ONBOARDING_STEPS.length - 1, step))
-      await savePatch({ currentStep: clampedStep })
+      const stepKey = ONBOARDING_STEPS[clampedStep]
+      mergeState((previous) => ({
+        ...previous,
+        data: { ...previous.data, currentStep: clampedStep, currentStepKey: stepKey },
+      }))
     },
-    [savePatch]
+    [mergeState]
   )
 
   const updateSeed = useCallback(
     (seed: SeedData) => {
       mergeState((previous) => ({
         ...previous,
-        data: {
-          ...previous.data,
-          seed,
-        },
+        data: { ...previous.data, seed },
       }))
-      debouncedSaveSeed(seed)
     },
-    [debouncedSaveSeed, mergeState]
+    [mergeState]
   )
 
   const updateStudent = useCallback(
     (student: StudentData) => {
       mergeState((previous) => ({
         ...previous,
-        data: {
-          ...previous.data,
-          student,
-        },
+        data: { ...previous.data, student },
       }))
-      debouncedSaveStudent(student)
     },
-    [debouncedSaveStudent, mergeState]
+    [mergeState]
   )
 
   const updateGaze = useCallback(
     (gaze: GazeData) => {
       mergeState((previous) => ({
         ...previous,
-        data: {
-          ...previous.data,
-          gaze,
-        },
+        data: { ...previous.data, gaze },
       }))
-      debouncedSaveGaze(gaze)
     },
-    [debouncedSaveGaze, mergeState]
-  )
-
-  const saveSeedData = useCallback(
-    async (seed: SeedData) => {
-      await saveIdentitySection('seed', seed)
-    },
-    [saveIdentitySection]
-  )
-
-  const saveStudentData = useCallback(
-    async (student: StudentData) => {
-      await saveIdentitySection('student', student)
-    },
-    [saveIdentitySection]
-  )
-
-  const saveGazeData = useCallback(
-    async (gaze: GazeData) => {
-      await saveIdentitySection('gaze', gaze)
-    },
-    [saveIdentitySection]
+    [mergeState]
   )
 
   const refreshConnectStatus = useCallback(async () => {
@@ -544,15 +485,13 @@ export function useOnboarding(): UseOnboardingReturn {
           connectedAccounts,
         },
       }))
-
-      await refreshState()
     } catch (err) {
       mergeState((previous) => ({
         ...previous,
         error: err instanceof Error ? err.message : 'Failed to refresh connection status',
       }))
     }
-  }, [mergeState, refreshState])
+  }, [mergeState])
 
   const startConnection = useCallback(
     async (provider: Provider = 'n2f') => {
@@ -597,6 +536,12 @@ export function useOnboarding(): UseOnboardingReturn {
     try {
       const response = await apiFetch('/api/onboarding/synthesize-experiment', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seed: state.data.seed,
+          student: state.data.student,
+          gaze: state.data.gaze,
+        }),
       })
 
       if (!response.ok) {
@@ -604,8 +549,16 @@ export function useOnboarding(): UseOnboardingReturn {
         throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to synthesize experiment')
       }
 
-      await refreshState()
-      mergeState((previous) => ({ ...previous, isSynthesizing: false }))
+      const payload = toObject(await response.json())
+      mergeState((previous) => ({
+        ...previous,
+        isSynthesizing: false,
+        data: {
+          ...previous.data,
+          synthesisStatus: stringValue(payload.synthesisStatus) || 'ready',
+          kaizenExperiment: payload.kaizenExperiment ? toObject(payload.kaizenExperiment) : previous.data.kaizenExperiment,
+        },
+      }))
     } catch (err) {
       mergeState((previous) => ({
         ...previous,
@@ -613,7 +566,7 @@ export function useOnboarding(): UseOnboardingReturn {
         error: err instanceof Error ? err.message : 'Failed to synthesize experiment',
       }))
     }
-  }, [mergeState, refreshState])
+  }, [mergeState, state.data.seed, state.data.student, state.data.gaze])
 
   const completeOnboarding = useCallback(async () => {
     mergeState((previous) => ({ ...previous, isSaving: true, error: null }))
@@ -621,6 +574,12 @@ export function useOnboarding(): UseOnboardingReturn {
     try {
       const response = await apiFetch('/api/onboarding/complete', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seed: state.data.seed,
+          student: state.data.student,
+          gaze: state.data.gaze,
+        }),
       })
 
       if (!response.ok) {
@@ -628,8 +587,16 @@ export function useOnboarding(): UseOnboardingReturn {
         throw new Error(typeof payload.error === 'string' ? payload.error : 'Failed to complete onboarding')
       }
 
-      await refreshState()
-      mergeState((previous) => ({ ...previous, isSaving: false }))
+      const payload = toObject(await response.json())
+      mergeState((previous) => ({
+        ...previous,
+        isSaving: false,
+        data: {
+          ...previous.data,
+          completedAt: stringValue(payload.completedAt),
+          isComplete: true,
+        },
+      }))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to complete onboarding'
       mergeState((previous) => ({
@@ -639,26 +606,42 @@ export function useOnboarding(): UseOnboardingReturn {
       }))
       throw err instanceof Error ? err : new Error(message)
     }
-  }, [mergeState, refreshState])
+  }, [mergeState, state.data.seed, state.data.student, state.data.gaze])
 
   const clearError = useCallback(() => {
     mergeState((previous) => ({ ...previous, error: null }))
   }, [mergeState])
 
-  const canAdvanceTo = useCallback((step: number) => canAdvanceToStep(state.data.maxAllowedStep, step), [state.data.maxAllowedStep])
+  // Compute validation locally from current form data so Continue enables without server round-trip.
+  const localValidation = useMemo(() => computeLocalValidation(state.data), [state.data])
+
+  const canAdvanceTo = useCallback(
+    (step: number) => canAdvanceToStep(localValidation.maxAllowedStep, step),
+    [localValidation.maxAllowedStep]
+  )
 
   const currentStepName = useMemo(() => state.data.currentStepKey, [state.data.currentStepKey])
 
+  // Expose state with locally-computed validation so UI reacts to typing immediately.
+  const stateWithLocalValidation = useMemo<OnboardingLocalState>(
+    () => ({
+      ...state,
+      data: {
+        ...state.data,
+        stepValidation: localValidation.stepValidation,
+        maxAllowedStep: localValidation.maxAllowedStep,
+      },
+    }),
+    [state, localValidation]
+  )
+
   return {
-    state,
+    state: stateWithLocalValidation,
     currentStepName,
     setCurrentStep,
     updateSeed,
     updateStudent,
     updateGaze,
-    saveSeedData,
-    saveStudentData,
-    saveGazeData,
     refreshState,
     refreshConnectStatus,
     startConnection,
