@@ -11,22 +11,22 @@ export function SeedStep({ value, errors, onChange }: SeedStepProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <Input
-        label="Core identity"
-        placeholder="Who are you right now at your core?"
+        label="Who are you?"
+        placeholder="e.g. Software engineer, founder, student, parent..."
         value={value.coreIdentity}
         onChange={(event) => onChange({ ...value, coreIdentity: event.target.value })}
       />
 
       <Input
-        label="Starting point"
-        placeholder="What context or season are you starting from?"
+        label="Where are you right now in life?"
+        placeholder="e.g. Just started a new job, recovering from burnout, building a side project..."
         value={value.startingPoint}
         onChange={(event) => onChange({ ...value, startingPoint: event.target.value })}
       />
 
       <Textarea
-        label="Narrative"
-        placeholder="Describe your current reality, constraints, and why this chapter matters now."
+        label="Tell us more"
+        placeholder="What's going on in your life right now? What are your constraints (time, energy, money)? Why does this moment feel important?"
         rows={8}
         value={value.narrative}
         onChange={(event) => onChange({ ...value, narrative: event.target.value })}

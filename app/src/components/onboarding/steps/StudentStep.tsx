@@ -11,18 +11,18 @@ export function StudentStep({ value, errors, onChange }: StudentStepProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <Input
-        label="Who are you becoming"
-        placeholder="State the identity you are building toward."
+        label="Who do you want to become?"
+        placeholder="e.g. A disciplined builder who ships every week, a calm and present parent..."
         value={value.becoming}
         onChange={(event) => onChange({ ...value, becoming: event.target.value })}
       />
 
       <Select
-        label="Horizon"
+        label="How far out are you looking?"
         value={value.horizon}
         onChange={(event) => onChange({ ...value, horizon: event.target.value })}
         options={[
-          { value: '', label: 'Select horizon' },
+          { value: '', label: 'Select a timeframe' },
           { value: '90_days', label: '90 days' },
           { value: '1_year', label: '1 year' },
           { value: '3_year', label: '3 years' },
@@ -31,8 +31,8 @@ export function StudentStep({ value, errors, onChange }: StudentStepProps) {
       />
 
       <Textarea
-        label="Narrative"
-        placeholder="Explain what skills, habits, and standards this future self requires."
+        label="What does that future version of you look like?"
+        placeholder="What skills do they have? What habits? What do they say no to? What's different about how they spend their day?"
         rows={8}
         value={value.narrative}
         onChange={(event) => onChange({ ...value, narrative: event.target.value })}

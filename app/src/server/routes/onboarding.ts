@@ -281,12 +281,20 @@ interface SynthesizedExperiment {
   themeName: string
   description: string
   lagWeeks: number
+  criteria: string[]
+}
+
+interface SynthesizedRoutine {
+  title: string
+  themeName: string
+  frequency: string
 }
 
 interface SynthesizedPlan {
   themes: SynthesizedTheme[]
   gates: SynthesizedGate[]
   experiments: SynthesizedExperiment[]
+  routines: SynthesizedRoutine[]
 }
 
 function normalizeExperimentPayload(payload: JsonRecord): SynthesizedPlan {
@@ -335,6 +343,7 @@ function normalizeExperimentPayload(payload: JsonRecord): SynthesizedPlan {
         themeName: valueAsString(obj.themeName || obj.theme_name || obj.theme),
         description: valueAsString(obj.description),
         lagWeeks: Math.max(1, Math.min(12, lagWeeks)),
+        criteria: valueAsStringArray(obj.criteria),
       }
     })
     .filter((e) => e.title.length > 0 && themeNames.has(e.themeName))
@@ -343,7 +352,23 @@ function normalizeExperimentPayload(payload: JsonRecord): SynthesizedPlan {
     throw new Error('Synthesis must produce at least 1 experiment per theme')
   }
 
-  return { themes, gates, experiments }
+  const rawRoutines = Array.isArray(payload.routines) ? payload.routines : []
+  const routines: SynthesizedRoutine[] = rawRoutines
+    .map((item) => {
+      const obj = toObject(item)
+      return {
+        title: valueAsString(obj.title),
+        themeName: valueAsString(obj.themeName || obj.theme_name || obj.theme),
+        frequency: valueAsString(obj.frequency) || 'Daily',
+      }
+    })
+    .filter((r) => r.title.length > 0 && themeNames.has(r.themeName))
+
+  if (routines.length < 4) {
+    throw new Error('Synthesis must produce at least 2 routines per theme')
+  }
+
+  return { themes, gates, experiments, routines }
 }
 
 async function getConnectedAccounts(userId: string): Promise<ConnectedAccount[]> {
@@ -544,18 +569,25 @@ Output JSON schema:
     { "title": "string", "themeName": "string", "deadline": "YYYY-MM-DD", "criteria": ["string", "string"] }
   ],
   "experiments": [
-    { "title": "string", "themeName": "string", "description": "string", "lagWeeks": 4 },
-    { "title": "string", "themeName": "string", "description": "string", "lagWeeks": 4 }
+    { "title": "string", "themeName": "string", "description": "string", "lagWeeks": 4, "criteria": ["string", "string"] },
+    { "title": "string", "themeName": "string", "description": "string", "lagWeeks": 4, "criteria": ["string", "string"] }
+  ],
+  "routines": [
+    { "title": "string", "themeName": "string", "frequency": "Daily|Weekly|2x per week|3x per week" },
+    { "title": "string", "themeName": "string", "frequency": "Daily|Weekly|2x per week|3x per week" },
+    { "title": "string", "themeName": "string", "frequency": "Daily|Weekly|2x per week|3x per week" },
+    { "title": "string", "themeName": "string", "frequency": "Daily|Weekly|2x per week|3x per week" }
   ]
 }
 
 Rules:
 - Generate exactly 2 themes (life areas that emerge from the user's Seed/Student/Gaze).
 - Generate exactly 1 gate per theme (2 total). A gate is a mandatory commitment with a deadline and success criteria.
-- Generate exactly 1 experiment per theme (2 total). An experiment is a testable hypothesis the user runs for lagWeeks.
-- Each gate and experiment must reference a theme by its exact name in the themeName field.
+- Generate exactly 1 experiment per theme (2 total). An experiment is a testable hypothesis the user runs for lagWeeks, with measurable criteria.
+- Generate exactly 2 routines per theme (4 total). A routine is a recurring practice that supports the theme.
+- Each gate, experiment, and routine must reference a theme by its exact name in the themeName field.
 - Gate deadlines should be realistic (30-90 days out from today).
-- Experiment lagWeeks should be 2-6 weeks.
+- Experiment lagWeeks should be 2-6 weeks. Experiment criteria should be 2-3 measurable outcomes.
 - Keep names concise (< 60 chars). Descriptions should be 1-2 sentences.
 - Every suggestion must be grounded in the Seed/Student/Gaze narrative.
 - Do not include placeholders like TBD.
@@ -957,6 +989,7 @@ router.post('/synthesize-experiment', async (req: Request, res: Response) => {
         themes: plan.themes,
         gates: plan.gates,
         experiments: plan.experiments,
+        routines: plan.routines,
         metadata: {
           model: 'gemini-3-flash-preview',
           generatedAt,
@@ -1044,6 +1077,7 @@ router.post('/complete', async (req: Request, res: Response) => {
     const rawThemes = Array.isArray(storedPlan.themes) ? storedPlan.themes : []
     const rawGates = Array.isArray(storedPlan.gates) ? storedPlan.gates : []
     const rawExperiments = Array.isArray(storedPlan.experiments) ? storedPlan.experiments : []
+    const rawRoutines = Array.isArray(storedPlan.routines) ? storedPlan.routines : []
 
     if (rawThemes.length < 2) {
       return res.status(422).json({
@@ -1117,7 +1151,28 @@ router.post('/complete', async (req: Request, res: Response) => {
           unitType: 'ACTION_EXPERIMENT',
           status: 'not_started',
           lagWeeks,
+          criteria: valueAsStringArray(e.criteria),
           tags: asJsonValue({ source: 'onboarding' }),
+        },
+      })
+    }
+
+    // Create Routine cards (2 per theme)
+    for (const rawRoutine of rawRoutines) {
+      const r = toObject(rawRoutine)
+      const title = valueAsString(r.title)
+      const themeName = valueAsString(r.themeName || r.theme_name || r.theme)
+      const parentId = themeNameToId.get(themeName)
+      if (!title || !parentId) continue
+
+      await prisma.card.create({
+        data: {
+          userId,
+          parentId,
+          title,
+          unitType: 'ACTION_ROUTINE',
+          status: 'not_started',
+          tags: asJsonValue({ source: 'onboarding', frequency: valueAsString(r.frequency) || 'Daily' }),
         },
       })
     }

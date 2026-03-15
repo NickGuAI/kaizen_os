@@ -49,12 +49,20 @@ interface SynthesizedExperiment {
   themeName: string
   description: string
   lagWeeks: number
+  criteria: string[]
+}
+
+interface SynthesizedRoutine {
+  title: string
+  themeName: string
+  frequency: string
 }
 
 function extractPlan(payload: Record<string, unknown>): {
   themes: SynthesizedTheme[]
   gates: SynthesizedGate[]
   experiments: SynthesizedExperiment[]
+  routines: SynthesizedRoutine[]
 } {
   const rawThemes = Array.isArray(payload.themes) ? payload.themes : []
   const themes: SynthesizedTheme[] = rawThemes
@@ -85,14 +93,25 @@ function extractPlan(payload: Record<string, unknown>): {
       themeName: toString(e.themeName || e.theme_name || e.theme),
       description: toString(e.description),
       lagWeeks: typeof e.lagWeeks === 'number' ? e.lagWeeks : 4,
+      criteria: toStringArray(e.criteria),
     }))
     .filter((e) => e.title.length > 0)
 
-  return { themes, gates, experiments }
+  const rawRoutines = Array.isArray(payload.routines) ? payload.routines : []
+  const routines: SynthesizedRoutine[] = rawRoutines
+    .filter((r): r is Record<string, unknown> => Boolean(r) && typeof r === 'object' && !Array.isArray(r))
+    .map((r) => ({
+      title: toString(r.title),
+      themeName: toString(r.themeName || r.theme_name || r.theme),
+      frequency: toString(r.frequency) || 'Daily',
+    }))
+    .filter((r) => r.title.length > 0)
+
+  return { themes, gates, experiments, routines }
 }
 
 function renderPlan(payload: Record<string, unknown>) {
-  const { themes, gates, experiments } = extractPlan(payload)
+  const { themes, gates, experiments, routines } = extractPlan(payload)
 
   if (themes.length === 0) {
     return (
@@ -115,6 +134,7 @@ function renderPlan(payload: Record<string, unknown>) {
       {themes.map((theme) => {
         const themeGates = gates.filter((g) => g.themeName === theme.name)
         const themeExperiments = experiments.filter((e) => e.themeName === theme.name)
+        const themeRoutines = routines.filter((r) => r.themeName === theme.name)
 
         return (
           <div
@@ -178,7 +198,30 @@ function renderPlan(payload: Record<string, unknown>) {
                         {exp.description}
                       </p>
                     ) : null}
+                    {exp.criteria.length > 0 ? (
+                      <ul style={{ margin: 'var(--space-1) 0 0', paddingLeft: 18, color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                        {exp.criteria.map((c) => (
+                          <li key={c}>{c}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
+                ))}
+              </div>
+            ) : null}
+
+            {themeRoutines.length > 0 ? (
+              <div style={{ marginTop: 'var(--space-3)' }}>
+                <p style={{ margin: '0 0 var(--space-1)', fontSize: 12, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Routines
+                </p>
+                {themeRoutines.map((routine) => (
+                  <p key={routine.title} style={{ margin: '0 0 var(--space-1)', fontSize: 13, color: 'var(--color-text-primary)' }}>
+                    {routine.title}
+                    <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)', marginLeft: 8 }}>
+                      {routine.frequency}
+                    </span>
+                  </p>
                 ))}
               </div>
             ) : null}
@@ -205,23 +248,23 @@ export function GazeStep({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
       <Textarea
-        label="Desires"
-        placeholder="Write what you want, why you want it, and what must become true."
+        label="What do you actually want?"
+        placeholder="Be specific. What outcomes matter most to you right now? Why do they matter? What would change if you got them?"
         rows={8}
         value={value.desires}
         onChange={(event) => onChange({ ...value, desires: event.target.value })}
       />
 
       <Textarea
-        label="Reflection"
-        placeholder="Reflect on tradeoffs, fear, resistance, and what you are willing to commit to."
+        label="What's holding you back?"
+        placeholder="What are you afraid of? What tradeoffs are you avoiding? What have you tried before that didn't work? What are you willing to give up?"
         rows={8}
         value={value.reflection}
         onChange={(event) => onChange({ ...value, reflection: event.target.value })}
       />
 
       <Input
-        label="Non-negotiables"
+        label="What rules will you never break?"
         placeholder="e.g. 7h sleep, weekly review, no meetings before noon"
         value={nonNegotiablesRaw}
         onChange={(event) => setNonNegotiablesRaw(event.target.value)}
@@ -270,7 +313,7 @@ export function GazeStep({
         >
           <h3 style={{ margin: 0, fontSize: 16, color: 'var(--color-text-primary)' }}>Your Kaizen Plan</h3>
           <p style={{ margin: 'var(--space-1) 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-            2 themes, each with a gate and an experiment — generated from your identity narrative.
+            2 themes, each with a gate, an experiment, and routines — generated from your identity narrative.
           </p>
           {renderPlan(kaizenExperiment)}
         </div>

@@ -48,6 +48,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <audio src="/assets/zenkai.wav" autoPlay loop style={{ display: 'none' }} />
       <CardNav variant="dark" />
 
       <div className="login-card">

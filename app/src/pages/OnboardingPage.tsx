@@ -45,6 +45,7 @@ export default function OnboardingPage() {
         paddingBottom: 'var(--space-12)',
       }}
     >
+      <audio src="/assets/zenkai.wav" autoPlay loop style={{ display: 'none' }} />
       <OnboardingWizard />
     </div>
   )
