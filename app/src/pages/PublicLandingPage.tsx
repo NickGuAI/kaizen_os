@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CardNav } from '../components/layout/CardNav'
 import LightRays from '../components/reactbits/LightRays'
@@ -8,19 +8,6 @@ import '../styles/public-landing.css'
 
 export default function PublicLandingPage() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const startMusic = useCallback(() => {
-    const el = audioRef.current
-    if (el && el.paused) {
-      el.play().catch(() => {})
-    }
-  }, [])
-
-  useEffect(() => {
-    document.addEventListener('click', startMusic, { once: true })
-    return () => document.removeEventListener('click', startMusic)
-  }, [startMusic])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -47,7 +34,6 @@ export default function PublicLandingPage() {
 
   return (
     <main className="public-landing">
-      <audio ref={audioRef} src="/assets/zenkai.wav" loop />
       <CardNav variant="dark" />
 
       <div className="public-landing__rays" aria-hidden="true">
