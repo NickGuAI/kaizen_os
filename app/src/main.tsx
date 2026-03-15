@@ -1,4 +1,4 @@
-import { StrictMode, useCallback, useEffect, useRef } from 'react'
+import { StrictMode, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
@@ -21,19 +21,7 @@ const queryClient = new QueryClient({
 function PersistentBackgroundMusic() {
   const audioRef = useRef<HTMLAudioElement>(null)
 
-  const startMusic = useCallback(() => {
-    const el = audioRef.current
-    if (el && el.paused) {
-      el.play().catch(() => {})
-    }
-  }, [])
-
-  useEffect(() => {
-    document.addEventListener('click', startMusic, { once: true })
-    return () => document.removeEventListener('click', startMusic)
-  }, [startMusic])
-
-  return <audio ref={audioRef} src="/assets/zenkai.wav" loop preload="auto" />
+  return <audio ref={audioRef} src="/assets/zenkai.wav" loop preload="none" />
 }
 
 createRoot(document.getElementById('root')!).render(
