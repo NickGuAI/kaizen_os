@@ -263,47 +263,87 @@ function extractJsonFromText(text: string): string {
   return text
 }
 
-function normalizeExperimentPayload(payload: JsonRecord): JsonRecord {
-  const title = valueAsString(payload.title || payload.experiment_name || payload.name)
-  const thesis = valueAsString(payload.thesis || payload.hypothesis || payload.experimentThesis)
-  const northStar = valueAsString(payload.northStar || payload.focus || payload.target)
+interface SynthesizedTheme {
+  name: string
+  description: string
+  icon: string
+}
 
-  const successSignals = valueAsStringArray(payload.successSignals || payload.success_metrics || payload.metrics)
-  const guardrails = valueAsStringArray(payload.guardrails || payload.riskMitigations || payload.risk_mitigations)
+interface SynthesizedGate {
+  title: string
+  themeName: string
+  deadline: string
+  criteria: string[]
+}
 
-  const rawFirstActions = Array.isArray(payload.firstActions)
-    ? payload.firstActions
-    : Array.isArray(payload.first_week_actions)
-      ? payload.first_week_actions
-      : []
+interface SynthesizedExperiment {
+  title: string
+  themeName: string
+  description: string
+  lagWeeks: number
+}
 
-  const firstActions = rawFirstActions
+interface SynthesizedPlan {
+  themes: SynthesizedTheme[]
+  gates: SynthesizedGate[]
+  experiments: SynthesizedExperiment[]
+}
+
+function normalizeExperimentPayload(payload: JsonRecord): SynthesizedPlan {
+  const rawThemes = Array.isArray(payload.themes) ? payload.themes : []
+  const themes: SynthesizedTheme[] = rawThemes
     .map((item) => {
-      const objectItem = toObject(item)
-      const actionTitle = valueAsString(objectItem.title)
-      const actionWhy = valueAsString(objectItem.why)
-      const actionWindow = valueAsString(objectItem.window || objectItem.dayHint)
-
+      const obj = toObject(item)
       return {
-        title: actionTitle,
-        why: actionWhy,
-        window: actionWindow,
+        name: valueAsString(obj.name),
+        description: valueAsString(obj.description),
+        icon: valueAsString(obj.icon) || '🎯',
       }
     })
-    .filter((item) => item.title.length > 0)
+    .filter((t) => t.name.length > 0)
 
-  if (!title || !thesis || !northStar || successSignals.length === 0 || firstActions.length === 0) {
-    throw new Error('Synthesis response failed schema validation')
+  if (themes.length < 2) {
+    throw new Error('Synthesis must produce at least 2 themes')
   }
 
-  return {
-    title,
-    thesis,
-    northStar,
-    successSignals,
-    guardrails,
-    firstActions,
+  const themeNames = new Set(themes.map((t) => t.name))
+
+  const rawGates = Array.isArray(payload.gates) ? payload.gates : []
+  const gates: SynthesizedGate[] = rawGates
+    .map((item) => {
+      const obj = toObject(item)
+      return {
+        title: valueAsString(obj.title),
+        themeName: valueAsString(obj.themeName || obj.theme_name || obj.theme),
+        deadline: valueAsString(obj.deadline),
+        criteria: valueAsStringArray(obj.criteria),
+      }
+    })
+    .filter((g) => g.title.length > 0 && themeNames.has(g.themeName))
+
+  if (gates.length < 2) {
+    throw new Error('Synthesis must produce at least 1 gate per theme')
   }
+
+  const rawExperiments = Array.isArray(payload.experiments) ? payload.experiments : []
+  const experiments: SynthesizedExperiment[] = rawExperiments
+    .map((item) => {
+      const obj = toObject(item)
+      const lagWeeks = typeof obj.lagWeeks === 'number' ? obj.lagWeeks : typeof obj.lag_weeks === 'number' ? obj.lag_weeks : 4
+      return {
+        title: valueAsString(obj.title),
+        themeName: valueAsString(obj.themeName || obj.theme_name || obj.theme),
+        description: valueAsString(obj.description),
+        lagWeeks: Math.max(1, Math.min(12, lagWeeks)),
+      }
+    })
+    .filter((e) => e.title.length > 0 && themeNames.has(e.themeName))
+
+  if (experiments.length < 2) {
+    throw new Error('Synthesis must produce at least 1 experiment per theme')
+  }
+
+  return { themes, gates, experiments }
 }
 
 async function getConnectedAccounts(userId: string): Promise<ConnectedAccount[]> {
@@ -486,7 +526,7 @@ function buildExperimentPrompt(params: {
   connectState: JsonRecord
   calendarSummary: JsonRecord
 }): string {
-  return `You are designing a focused "Kaizen Experiment" for onboarding.
+  return `You are designing a personal Kaizen plan for a new user based on their identity and aspirations.
 
 Return valid JSON only. No markdown. No extra text.
 
@@ -495,22 +535,31 @@ ${JSON.stringify(params, null, 2)}
 
 Output JSON schema:
 {
-  "title": "string",
-  "thesis": "string",
-  "northStar": "string",
-  "successSignals": ["string", "string"],
-  "guardrails": ["string", "string"],
-  "firstActions": [
-    { "title": "string", "why": "string", "window": "string" }
+  "themes": [
+    { "name": "string", "description": "string", "icon": "single emoji" },
+    { "name": "string", "description": "string", "icon": "single emoji" }
+  ],
+  "gates": [
+    { "title": "string", "themeName": "string", "deadline": "YYYY-MM-DD", "criteria": ["string", "string"] },
+    { "title": "string", "themeName": "string", "deadline": "YYYY-MM-DD", "criteria": ["string", "string"] }
+  ],
+  "experiments": [
+    { "title": "string", "themeName": "string", "description": "string", "lagWeeks": 4 },
+    { "title": "string", "themeName": "string", "description": "string", "lagWeeks": 4 }
   ]
 }
 
 Rules:
-- Provide 3-5 successSignals.
-- Provide 2-4 firstActions.
-- Keep title concise (< 70 chars).
-- Every field must be grounded in Seed/Student/Gaze narrative.
-- Do not include placeholders like TBD.`
+- Generate exactly 2 themes (life areas that emerge from the user's Seed/Student/Gaze).
+- Generate exactly 1 gate per theme (2 total). A gate is a mandatory commitment with a deadline and success criteria.
+- Generate exactly 1 experiment per theme (2 total). An experiment is a testable hypothesis the user runs for lagWeeks.
+- Each gate and experiment must reference a theme by its exact name in the themeName field.
+- Gate deadlines should be realistic (30-90 days out from today).
+- Experiment lagWeeks should be 2-6 weeks.
+- Keep names concise (< 60 chars). Descriptions should be 1-2 sentences.
+- Every suggestion must be grounded in the Seed/Student/Gaze narrative.
+- Do not include placeholders like TBD.
+- Icon must be a single emoji character.`
 }
 
 // GET /api/onboarding/state
@@ -894,7 +943,7 @@ router.post('/synthesize-experiment', async (req: Request, res: Response) => {
 
       const rawResponse = await callGemini(prompt)
       const parsed = JSON.parse(extractJsonFromText(rawResponse))
-      const experiment = normalizeExperimentPayload(toObject(parsed))
+      const plan = normalizeExperimentPayload(toObject(parsed))
 
       const generatedAt = new Date().toISOString()
       const qualityFlags = {
@@ -904,8 +953,10 @@ router.post('/synthesize-experiment', async (req: Request, res: Response) => {
         gazeReflectionLength: valueAsString(gaze.reflection).length,
       }
 
-      const payload = {
-        experiment,
+      const kaizenPlan = {
+        themes: plan.themes,
+        gates: plan.gates,
+        experiments: plan.experiments,
         metadata: {
           model: 'gemini-3-flash-preview',
           generatedAt,
@@ -920,14 +971,14 @@ router.post('/synthesize-experiment', async (req: Request, res: Response) => {
           seed: asJsonValue(seed),
           student: asJsonValue(student),
           gaze: asJsonValue(gaze),
-          kaizenExperiment: asJsonValue(payload),
+          kaizenExperiment: asJsonValue(kaizenPlan),
           synthesisStatus: 'ready',
         },
       })
 
       return res.json({
         synthesisStatus: updatedProfile.synthesisStatus,
-        kaizenExperiment: payload,
+        kaizenExperiment: kaizenPlan,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to synthesize experiment'
@@ -984,11 +1035,92 @@ router.post('/complete', async (req: Request, res: Response) => {
 
     if (isEmptyRecord(profile.kaizenExperiment)) {
       return res.status(422).json({
-        error: 'Generate your Kaizen Experiment before completing onboarding.',
+        error: 'Generate your Kaizen plan before completing onboarding.',
+      })
+    }
+
+    // Extract synthesized plan from stored kaizenExperiment
+    const storedPlan = toObject(profile.kaizenExperiment)
+    const rawThemes = Array.isArray(storedPlan.themes) ? storedPlan.themes : []
+    const rawGates = Array.isArray(storedPlan.gates) ? storedPlan.gates : []
+    const rawExperiments = Array.isArray(storedPlan.experiments) ? storedPlan.experiments : []
+
+    if (rawThemes.length < 2) {
+      return res.status(422).json({
+        error: 'Synthesized plan is missing themes. Please re-synthesize.',
       })
     }
 
     const completedAt = new Date().toISOString()
+
+    // Create Theme cards
+    const themeNameToId = new Map<string, string>()
+    for (const rawTheme of rawThemes) {
+      const t = toObject(rawTheme)
+      const name = valueAsString(t.name)
+      if (!name) continue
+
+      const themeCard = await prisma.card.create({
+        data: {
+          userId,
+          title: name,
+          description: valueAsString(t.description),
+          unitType: 'THEME',
+          status: 'in_progress',
+          tags: asJsonValue({ icon: valueAsString(t.icon) || '🎯', source: 'onboarding' }),
+        },
+      })
+      themeNameToId.set(name, themeCard.id)
+    }
+
+    // Create Gate cards (1 per theme)
+    for (const rawGate of rawGates) {
+      const g = toObject(rawGate)
+      const title = valueAsString(g.title)
+      const themeName = valueAsString(g.themeName || g.theme_name || g.theme)
+      const parentId = themeNameToId.get(themeName)
+      if (!title || !parentId) continue
+
+      const deadline = valueAsString(g.deadline)
+      const targetDate = deadline ? parseOptionalDate(deadline) : null
+
+      await prisma.card.create({
+        data: {
+          userId,
+          parentId,
+          title,
+          unitType: 'ACTION_GATE',
+          status: 'not_started',
+          targetDate,
+          criteria: valueAsStringArray(g.criteria),
+          tags: asJsonValue({ source: 'onboarding' }),
+        },
+      })
+    }
+
+    // Create Experiment cards (1 per theme)
+    for (const rawExp of rawExperiments) {
+      const e = toObject(rawExp)
+      const title = valueAsString(e.title)
+      const themeName = valueAsString(e.themeName || e.theme_name || e.theme)
+      const parentId = themeNameToId.get(themeName)
+      if (!title || !parentId) continue
+
+      const lagWeeks = typeof e.lagWeeks === 'number' ? e.lagWeeks : 4
+
+      await prisma.card.create({
+        data: {
+          userId,
+          parentId,
+          title,
+          description: valueAsString(e.description),
+          unitType: 'ACTION_EXPERIMENT',
+          status: 'not_started',
+          lagWeeks,
+          tags: asJsonValue({ source: 'onboarding' }),
+        },
+      })
+    }
 
     await Promise.all([
       prisma.onboardingProfile.update({

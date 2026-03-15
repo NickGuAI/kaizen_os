@@ -31,30 +31,70 @@ function toStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string')
 }
 
-function renderExperiment(experimentPayload: Record<string, unknown>) {
-  const experiment =
-    experimentPayload.experiment &&
-    typeof experimentPayload.experiment === 'object' &&
-    !Array.isArray(experimentPayload.experiment)
-      ? (experimentPayload.experiment as Record<string, unknown>)
-      : experimentPayload
+interface SynthesizedTheme {
+  name: string
+  description: string
+  icon: string
+}
 
-  const title = toString(experiment.title)
-  const thesis = toString(experiment.thesis)
-  const northStar = toString(experiment.northStar)
-  const signals = toStringArray(experiment.successSignals)
-  const actions = Array.isArray(experiment.firstActions)
-    ? experiment.firstActions
-        .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
-        .map((action) => ({
-          title: toString(action.title),
-          why: toString(action.why),
-          window: toString(action.window),
-        }))
-        .filter((action) => action.title.length > 0)
-    : []
+interface SynthesizedGate {
+  title: string
+  themeName: string
+  deadline: string
+  criteria: string[]
+}
 
-  if (!title && !thesis && !northStar && signals.length === 0 && actions.length === 0) {
+interface SynthesizedExperiment {
+  title: string
+  themeName: string
+  description: string
+  lagWeeks: number
+}
+
+function extractPlan(payload: Record<string, unknown>): {
+  themes: SynthesizedTheme[]
+  gates: SynthesizedGate[]
+  experiments: SynthesizedExperiment[]
+} {
+  const rawThemes = Array.isArray(payload.themes) ? payload.themes : []
+  const themes: SynthesizedTheme[] = rawThemes
+    .filter((t): t is Record<string, unknown> => Boolean(t) && typeof t === 'object' && !Array.isArray(t))
+    .map((t) => ({
+      name: toString(t.name),
+      description: toString(t.description),
+      icon: toString(t.icon) || '🎯',
+    }))
+    .filter((t) => t.name.length > 0)
+
+  const rawGates = Array.isArray(payload.gates) ? payload.gates : []
+  const gates: SynthesizedGate[] = rawGates
+    .filter((g): g is Record<string, unknown> => Boolean(g) && typeof g === 'object' && !Array.isArray(g))
+    .map((g) => ({
+      title: toString(g.title),
+      themeName: toString(g.themeName || g.theme_name || g.theme),
+      deadline: toString(g.deadline),
+      criteria: toStringArray(g.criteria),
+    }))
+    .filter((g) => g.title.length > 0)
+
+  const rawExperiments = Array.isArray(payload.experiments) ? payload.experiments : []
+  const experiments: SynthesizedExperiment[] = rawExperiments
+    .filter((e): e is Record<string, unknown> => Boolean(e) && typeof e === 'object' && !Array.isArray(e))
+    .map((e) => ({
+      title: toString(e.title),
+      themeName: toString(e.themeName || e.theme_name || e.theme),
+      description: toString(e.description),
+      lagWeeks: typeof e.lagWeeks === 'number' ? e.lagWeeks : 4,
+    }))
+    .filter((e) => e.title.length > 0)
+
+  return { themes, gates, experiments }
+}
+
+function renderPlan(payload: Record<string, unknown>) {
+  const { themes, gates, experiments } = extractPlan(payload)
+
+  if (themes.length === 0) {
     return (
       <pre
         style={{
@@ -65,47 +105,86 @@ function renderExperiment(experimentPayload: Record<string, unknown>) {
           color: 'var(--color-text-secondary)',
         }}
       >
-        {JSON.stringify(experimentPayload, null, 2)}
+        {JSON.stringify(payload, null, 2)}
       </pre>
     )
   }
 
   return (
-    <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      {title ? <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>{title}</p> : null}
-      {thesis ? <p style={{ margin: 0, fontSize: 14, color: 'var(--color-text-secondary)' }}>{thesis}</p> : null}
-      {northStar ? (
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-          <strong style={{ color: 'var(--color-text-primary)' }}>North star:</strong> {northStar}
-        </p>
-      ) : null}
-      {signals.length > 0 ? (
-        <div>
-          <p style={{ margin: '0 0 var(--space-2)', fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>
-            Success signals
-          </p>
-          <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--color-text-secondary)', fontSize: 13 }}>
-            {signals.map((signal) => (
-              <li key={signal}>{signal}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {actions.length > 0 ? (
-        <div>
-          <p style={{ margin: '0 0 var(--space-2)', fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>
-            First actions
-          </p>
-          <ul style={{ margin: 0, paddingLeft: 18, color: 'var(--color-text-secondary)', fontSize: 13 }}>
-            {actions.map((action) => (
-              <li key={action.title}>
-                {action.title}
-                {action.window ? ` (${action.window})` : ''}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+    <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+      {themes.map((theme) => {
+        const themeGates = gates.filter((g) => g.themeName === theme.name)
+        const themeExperiments = experiments.filter((e) => e.themeName === theme.name)
+
+        return (
+          <div
+            key={theme.name}
+            style={{
+              border: '1px solid var(--color-sage-border-light)',
+              borderRadius: 10,
+              padding: 'var(--space-4)',
+              background: 'rgba(255,255,255,0.4)',
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+              {theme.icon} {theme.name}
+            </p>
+            <p style={{ margin: 'var(--space-1) 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              {theme.description}
+            </p>
+
+            {themeGates.length > 0 ? (
+              <div style={{ marginTop: 'var(--space-3)' }}>
+                <p style={{ margin: '0 0 var(--space-1)', fontSize: 12, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Gate
+                </p>
+                {themeGates.map((gate) => (
+                  <div key={gate.title} style={{ marginBottom: 'var(--space-2)' }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                      {gate.title}
+                      {gate.deadline ? (
+                        <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)', marginLeft: 8 }}>
+                          by {gate.deadline}
+                        </span>
+                      ) : null}
+                    </p>
+                    {gate.criteria.length > 0 ? (
+                      <ul style={{ margin: 'var(--space-1) 0 0', paddingLeft: 18, color: 'var(--color-text-secondary)', fontSize: 12 }}>
+                        {gate.criteria.map((c) => (
+                          <li key={c}>{c}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {themeExperiments.length > 0 ? (
+              <div style={{ marginTop: 'var(--space-3)' }}>
+                <p style={{ margin: '0 0 var(--space-1)', fontSize: 12, fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Experiment
+                </p>
+                {themeExperiments.map((exp) => (
+                  <div key={exp.title} style={{ marginBottom: 'var(--space-2)' }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                      {exp.title}
+                      <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)', marginLeft: 8 }}>
+                        {exp.lagWeeks}w
+                      </span>
+                    </p>
+                    {exp.description ? (
+                      <p style={{ margin: 'var(--space-1) 0 0', fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                        {exp.description}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -173,10 +252,10 @@ export function GazeStep({
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-3)' }}>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-          Synthesis is required before final completion.
+          Generate your starting plan before finishing onboarding.
         </p>
         <Button variant="secondary" onClick={onSynthesize} disabled={!canSynthesize || isSynthesizing}>
-          {isSynthesizing ? 'Synthesizing...' : 'Synthesize Kaizen Experiment'}
+          {isSynthesizing ? 'Generating...' : kaizenExperiment ? 'Re-generate Plan' : 'Generate Plan'}
         </Button>
       </div>
 
@@ -189,8 +268,11 @@ export function GazeStep({
             padding: 'var(--space-4)',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--color-text-primary)' }}>Kaizen Experiment Draft</h3>
-          {renderExperiment(kaizenExperiment)}
+          <h3 style={{ margin: 0, fontSize: 16, color: 'var(--color-text-primary)' }}>Your Kaizen Plan</h3>
+          <p style={{ margin: 'var(--space-1) 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>
+            2 themes, each with a gate and an experiment — generated from your identity narrative.
+          </p>
+          {renderPlan(kaizenExperiment)}
         </div>
       ) : null}
     </div>

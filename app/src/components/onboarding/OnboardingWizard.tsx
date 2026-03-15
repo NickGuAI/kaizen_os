@@ -182,7 +182,7 @@ export function OnboardingWizard() {
         isNextDisabled={isNextDisabled}
         isWorking={isWorking}
         nextButtonText="Continue"
-        finalButtonText="Finish onboarding"
+        finalButtonText="Start my Kaizen"
       />
     </div>
   )
