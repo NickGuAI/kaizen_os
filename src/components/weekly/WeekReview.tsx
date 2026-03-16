@@ -1,0 +1,972 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useReviewOptions } from '../../hooks/useCards';
+import { Button } from '../ui';
+import { apiFetch } from '../../lib/apiFetch';
+
+interface CalendarEvent {
+  id: string;
+  summary: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  calendarId: string;
+}
+
+interface ClassifiedEvent {
+  event: CalendarEvent;
+  accountId: string;
+  instanceKey: string;
+  cardId: string | null;
+  cardTitle: string | null;
+  source: string;
+  confidence: number;
+  selectedSkip?: boolean;
+  suggestions?: Array<{
+    cardId: string;
+    cardTitle: string;
+    confidence: number;
+    source: string;
+  }>;
+}
+
+interface ThemeSummary {
+  themeId: string;
+  themeName: string;
+  actualHours: number;
+  plannedHours: number;
+  color: string;
+}
+
+interface ReviewData {
+  summary: {
+    totalEvents: number;
+    totalHours: number;
+    autoClassified: number;
+    needsReview: number;
+    coverage: number;
+  };
+  classified: ClassifiedEvent[];
+  ambiguous: ClassifiedEvent[];
+  themeSummaries: ThemeSummary[];
+}
+
+interface Props {
+  weekStart: string;
+}
+
+function getEventDate(item: ClassifiedEvent): string {
+  const dt = item.event.start.dateTime || item.event.start.date || '';
+  return dt.split('T')[0];
+}
+
+function formatDayLabel(dateStr?: string): string {
+  if (!dateStr) return '';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString([], {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+export function WeekReview({ weekStart }: Props) {
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [reclassifying, setReclassifying] = useState(false);
+  const [data, setData] = useState<ReviewData | null>(null);
+  const [decisions, setDecisions] = useState<Record<string, string | null>>({});
+  const [rememberChoices, setRememberChoices] = useState<Record<string, boolean>>({});
+  const [showDeclined, setShowDeclined] = useState(false);
+  const [manualOverrides, setManualOverrides] = useState<Set<string>>(new Set());
+  const [currentDayIndex, setCurrentDayIndex] = useState(0);
+
+  const { data: cards = [] } = useReviewOptions();
+
+  // Group ambiguous events by day
+  const eventsByDay = useMemo(() => {
+    const allAmbiguous = data?.ambiguous || [];
+    const map = new Map<string, ClassifiedEvent[]>();
+    for (const item of allAmbiguous) {
+      const date = getEventDate(item);
+      if (!map.has(date)) {
+        map.set(date, []);
+      }
+      map.get(date)!.push(item);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [data]);
+
+  useEffect(() => {
+    fetchReview();
+  }, [weekStart]);
+
+  // Auto-select highest confidence suggestion for events without existing decisions
+  useEffect(() => {
+    if (!data?.ambiguous) return;
+
+    setDecisions((prev) => {
+      const merged = { ...prev };
+      for (const item of data.ambiguous) {
+        // Only auto-select if user hasn't already decided and event is not declined
+        if (!item.selectedSkip && merged[item.event.id] === undefined && item.suggestions?.length) {
+          const best = item.suggestions.reduce((a, b) =>
+            b.confidence > a.confidence ? b : a
+          );
+          merged[item.event.id] = best.cardId;
+        }
+      }
+      return merged;
+    });
+  }, [data]);
+
+  // Reset to first day when data reloads
+  useEffect(() => {
+    setCurrentDayIndex(0);
+  }, [data]);
+
+  async function fetchReview() {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/calendar/review?weekStart=${weekStart}`, {
+
+      });
+      const result = await res.json();
+      setData(result);
+    } catch (error) {
+      console.error('Failed to fetch review:', error);
+    }
+    setLoading(false);
+  }
+
+  async function handleReclassify() {
+    setReclassifying(true);
+    try {
+      const res = await apiFetch(`/api/calendar/review/reclassify?weekStart=${weekStart}`, {
+        method: 'POST',
+
+      });
+      const result = await res.json();
+      // Clear stale decisions so auto-selection re-runs with fresh suggestions
+      setDecisions(prev => {
+        const cleared = { ...prev };
+        for (const item of (result.ambiguous ?? [])) {
+          delete cleared[item.event.id];
+        }
+        return cleared;
+      });
+      setData(result);
+    } catch (error) {
+      console.error('Failed to reclassify:', error);
+    }
+    setReclassifying(false);
+  }
+
+  async function handleCommit() {
+    if (!data) return;
+    setSyncing(true);
+
+    const payload = {
+      weekStart,
+      decisions: (data.ambiguous || [])
+        .filter((e) => !e.selectedSkip && decisions[e.event.id] !== undefined)
+        .map((e) => ({
+          accountId: e.accountId,
+          calendarId: e.event.calendarId,
+          eventId: e.event.id,
+          instanceKey: e.instanceKey,
+          cardId: decisions[e.event.id],
+          createRule: rememberChoices[e.event.id] || false,
+          eventTitle: e.event.summary, // Include event title for rule creation
+        })),
+    };
+
+    try {
+      await apiFetch('/api/calendar/review/commit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+                  },
+        body: JSON.stringify(payload),
+      });
+      await fetchReview();
+    } catch (error) {
+      console.error('Failed to commit review:', error);
+    }
+    setSyncing(false);
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-12)', gap: 'var(--space-4)' }}>
+        <div style={{ fontSize: '24px' }}>✨</div>
+        <span className="text-muted">Loading review & running AI classification...</span>
+        <span style={{ fontSize: '12px', color: '#999' }}>This may take a few seconds</span>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div
+        style={{
+          padding: 'var(--space-4)',
+          background: '#FEE2E2',
+          borderRadius: 'var(--radius-md)',
+          color: '#DC2626',
+        }}
+      >
+        Failed to load review data
+      </div>
+    );
+  }
+
+  const allAmbiguous = data.ambiguous || [];
+  const allDecided = allAmbiguous.every((e) => e.selectedSkip || decisions[e.event.id] !== undefined);
+  const totalPending = allAmbiguous.filter(e => !e.selectedSkip && decisions[e.event.id] === undefined).length;
+
+  return (
+    <div>
+      {/* Reclassifying overlay */}
+      {reclassifying && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(255, 255, 255, 0.9)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          gap: 'var(--space-4)',
+        }}>
+          <div style={{ fontSize: '48px', animation: 'pulse 1.5s infinite' }}>✨</div>
+          <span style={{ fontSize: '18px', fontWeight: 600 }}>Running AI Classification...</span>
+          <span style={{ fontSize: '14px', color: '#666' }}>Analyzing events with 5 parallel AI calls</span>
+        </div>
+      )}
+
+      {/* Status Alert */}
+      <div
+        style={{
+          padding: 'var(--space-4)',
+          marginBottom: 'var(--space-6)',
+          borderRadius: 'var(--radius-md)',
+          background: allAmbiguous.length === 0 ? '#D1FAE5' : '#DBEAFE',
+          color: allAmbiguous.length === 0 ? '#065F46' : '#1E40AF',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-2)',
+        }}
+      >
+        <span>{allAmbiguous.length === 0 ? '✓' : '⚠'}</span>
+        {allAmbiguous.length === 0
+          ? 'All events classified!'
+          : `${allAmbiguous.length} events need your review`}
+      </div>
+
+      {/* Summary Stats */}
+      <div
+        style={{
+          background: 'var(--color-card)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--color-sage-border-light)',
+          padding: 'var(--space-6)',
+          marginBottom: 'var(--space-6)',
+        }}
+      >
+        <h3 className="text-lg font-semibold" style={{ marginBottom: 'var(--space-2)' }}>
+          Week Summary
+        </h3>
+        <p className="text-sm text-muted" style={{ marginBottom: 'var(--space-4)' }}>
+          {data.summary.totalEvents} events synced from Google Calendar
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)' }}>
+          <StatBox label="Total Time" value={`${data.summary.totalHours}h`} variant="highlight" />
+          <StatBox label="Auto-Classified" value={data.summary.autoClassified} variant="success" />
+          <StatBox label="Needs Review" value={data.summary.needsReview} variant="warning" />
+          <StatBox label="Coverage" value={`${data.summary.coverage}%`} />
+        </div>
+      </div>
+
+      {/* Events Needing Classification — Day-by-Day */}
+      {allAmbiguous.length > 0 && (() => {
+        const currentDayDate = eventsByDay[currentDayIndex]?.[0];
+        const currentDayItems = eventsByDay[currentDayIndex]?.[1] || [];
+        const declinedInDay = currentDayItems.filter(e => e.selectedSkip).length;
+        const visibleDayItems = showDeclined
+          ? currentDayItems
+          : currentDayItems.filter(e => !e.selectedSkip);
+        const dayPending = currentDayItems.filter(e => !e.selectedSkip && decisions[e.event.id] === undefined).length;
+        const isLastDay = currentDayIndex === eventsByDay.length - 1;
+
+        return (
+          <div
+            style={{
+              background: 'var(--color-card)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-sage-border-light)',
+              padding: 'var(--space-6)',
+              marginBottom: 'var(--space-6)',
+            }}
+          >
+            {/* Section header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+              <h3 className="text-lg font-semibold">Events Needing Classification</h3>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                <button
+                  onClick={handleReclassify}
+                  disabled={reclassifying}
+                  style={{
+                    background: 'var(--color-sage-light)',
+                    color: 'var(--color-sage)',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    border: '1px solid var(--color-sage-border)',
+                    cursor: reclassifying ? 'not-allowed' : 'pointer',
+                    opacity: reclassifying ? 0.6 : 1,
+                  }}
+                >
+                  {reclassifying ? '✨ Classifying...' : '✨ Re-classify with AI'}
+                </button>
+                <span
+                  style={{
+                    background: totalPending > 0 ? '#F39C12' : '#27AE60',
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {totalPending > 0 ? `${totalPending} total pending` : 'All decided'}
+                </span>
+              </div>
+            </div>
+
+            {/* Day dot indicators */}
+            {eventsByDay.length > 1 && (
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 12 }}>
+                {eventsByDay.map(([date, events], i) => {
+                  const pending = events.filter(e => !e.selectedSkip && decisions[e.event.id] === undefined).length;
+                  const allDone = pending === 0;
+                  return (
+                    <button
+                      key={date}
+                      onClick={() => setCurrentDayIndex(i)}
+                      title={formatDayLabel(date)}
+                      style={{
+                        width: i === currentDayIndex ? 24 : 8,
+                        height: 8,
+                        borderRadius: 4,
+                        border: 'none',
+                        background: i === currentDayIndex
+                          ? 'var(--color-sage)'
+                          : allDone
+                            ? '#27AE60'
+                            : '#F39C12',
+                        cursor: 'pointer',
+                        padding: 0,
+                        transition: 'all 0.2s ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Day navigator */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 12px',
+                marginBottom: 16,
+                background: 'var(--color-bg)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-sage-border-light)',
+              }}
+            >
+              <button
+                onClick={() => setCurrentDayIndex(i => Math.max(0, i - 1))}
+                disabled={currentDayIndex === 0}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: '1px solid var(--color-sage-border)',
+                  background: currentDayIndex === 0 ? 'rgba(0,0,0,0.04)' : 'var(--color-sage-light)',
+                  color: currentDayIndex === 0 ? '#ccc' : 'var(--color-sage)',
+                  cursor: currentDayIndex === 0 ? 'not-allowed' : 'pointer',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                ‹
+              </button>
+
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>
+                  {formatDayLabel(currentDayDate)}
+                </div>
+                <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                  Day {currentDayIndex + 1} of {eventsByDay.length}
+                  {' · '}
+                  {dayPending > 0 ? `${dayPending} pending` : '✓ all decided'}
+                  {declinedInDay > 0 && !showDeclined && (
+                    <span> · <button
+                      onClick={() => setShowDeclined(true)}
+                      style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline' }}
+                    >
+                      {declinedInDay} declined
+                    </button></span>
+                  )}
+                  {showDeclined && declinedInDay > 0 && (
+                    <span> · <button
+                      onClick={() => setShowDeclined(false)}
+                      style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 12, padding: 0, textDecoration: 'underline' }}
+                    >
+                      hide declined
+                    </button></span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setCurrentDayIndex(i => Math.min(eventsByDay.length - 1, i + 1))}
+                disabled={isLastDay}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  border: '1px solid var(--color-sage-border)',
+                  background: isLastDay ? 'rgba(0,0,0,0.04)' : 'var(--color-sage-light)',
+                  color: isLastDay ? '#ccc' : 'var(--color-sage)',
+                  cursor: isLastDay ? 'not-allowed' : 'pointer',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                ›
+              </button>
+            </div>
+
+            {/* Event cards for current day */}
+            {visibleDayItems.map((item, index) => {
+              const topSuggestion = item.suggestions?.reduce((a, b) =>
+                b.confidence > a.confidence ? b : a
+              , item.suggestions?.[0]);
+              const topSuggestionCardId = topSuggestion?.cardId;
+              const isAutoSelected = !manualOverrides.has(item.event.id);
+
+              return (
+                <EventCard
+                  key={`ambiguous-${index}-${item.accountId}-${item.event.calendarId}-${item.event.id}`}
+                  item={item}
+                  cards={cards}
+                  selectedCardId={decisions[item.event.id]}
+                  topSuggestionCardId={topSuggestionCardId}
+                  isAutoSelected={isAutoSelected}
+                  onSelect={(cardId) => {
+                    setDecisions((d) => ({ ...d, [item.event.id]: cardId }));
+                    setManualOverrides((prev) => new Set([...prev, item.event.id]));
+                  }}
+                  rememberChoice={rememberChoices[item.event.id] || false}
+                  onRememberChange={(checked) =>
+                    setRememberChoices((r) => ({ ...r, [item.event.id]: checked }))
+                  }
+                />
+              );
+            })}
+
+            {/* Bottom actions */}
+            <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
+              {!isLastDay ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setCurrentDayIndex(i => Math.min(eventsByDay.length - 1, i + 1))}
+                    style={{ flex: 1 }}
+                  >
+                    Next Day →
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleCommit}
+                    disabled={!allDecided || syncing}
+                    style={{ flex: 1 }}
+                  >
+                    {syncing ? 'Saving...' : `Confirm & Log Time${totalPending > 0 ? ` (${totalPending} pending)` : ''}`}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="primary"
+                  onClick={handleCommit}
+                  disabled={!allDecided || syncing}
+                  style={{ width: '100%' }}
+                >
+                  {syncing ? 'Saving...' : `Confirm & Log Time${totalPending > 0 ? ` (${totalPending} pending)` : ''}`}
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Theme Summary */}
+      {(data.themeSummaries || []).length > 0 && (
+        <div
+          style={{
+            background: 'var(--color-card)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--color-sage-border-light)',
+            padding: 'var(--space-6)',
+            marginBottom: 'var(--space-6)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+            <h3 className="text-lg font-semibold">Hours by Theme</h3>
+            <span
+              style={{
+                background: '#27AE60',
+                color: 'white',
+                padding: '4px 12px',
+                borderRadius: '12px',
+                fontSize: '12px',
+                fontWeight: 600,
+              }}
+            >
+              Planned vs Actual
+            </span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-4)' }}>
+            {(data.themeSummaries || []).map((theme) => (
+              <ThemeCard key={theme.themeId} theme={theme} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Auto-Classified Events */}
+      <div style={{ borderTop: '1px solid var(--color-sage-border-light)', paddingTop: 'var(--space-6)' }}>
+        <h3 className="text-lg font-semibold text-muted" style={{ marginBottom: 'var(--space-4)' }}>
+          Auto-Classified ({(data.classified || []).length})
+        </h3>
+        {(data.classified || []).slice(0, 10).map((item, index) => (
+          <div
+            key={`classified-${index}-${item.accountId}-${item.event.calendarId}-${item.event.id}`}
+            style={{
+              padding: 'var(--space-2) 0',
+              display: 'flex',
+              gap: 'var(--space-4)',
+              alignItems: 'center',
+            }}
+          >
+            <span style={{ flex: 1 }}>{item.event.summary}</span>
+            <span
+              style={{
+                background: 'var(--color-sage-light)',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '12px',
+              }}
+            >
+              {item.cardTitle || '?'}
+            </span>
+          </div>
+        ))}
+        {(data.classified || []).length > 10 && (
+          <p className="text-sm text-muted">+{(data.classified || []).length - 10} more</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// Helper Components
+
+function StatBox({
+  label,
+  value,
+  variant,
+}: {
+  label: string;
+  value: string | number;
+  variant?: 'highlight' | 'success' | 'warning';
+}) {
+  const colors = {
+    highlight: '#8B9467',
+    success: '#27AE60',
+    warning: '#F39C12',
+    default: '#1A1A1A',
+  };
+  const color = colors[variant || 'default'];
+
+  return (
+    <div
+      style={{
+        background: 'var(--color-bg)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-4)',
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: '28px', fontWeight: 600, fontFamily: 'monospace', color }}>
+        {value}
+      </div>
+      <div style={{ fontSize: '12px', color: '#999' }}>{label}</div>
+    </div>
+  );
+}
+
+function EventCard({
+  item,
+  cards,
+  selectedCardId,
+  topSuggestionCardId,
+  isAutoSelected,
+  onSelect,
+  rememberChoice,
+  onRememberChange,
+}: {
+  item: ClassifiedEvent;
+  cards: Array<{ id: string; title: string; unitType?: string; status?: string }>;
+  selectedCardId?: string | null;
+  topSuggestionCardId?: string;
+  isAutoSelected: boolean;
+  onSelect: (cardId: string | null) => void;
+  rememberChoice: boolean;
+  onRememberChange: (checked: boolean) => void;
+}) {
+  const startTime = item.event.start.dateTime || item.event.start.date;
+  const endTime = item.event.end?.dateTime || item.event.end?.date;
+  const start = new Date(startTime!);
+  const end = endTime ? new Date(endTime) : null;
+
+  const timeStr = start.toLocaleString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const duration = end
+    ? `${Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60))}h`
+    : '';
+
+  // Group cards by type and sort by status
+  const groupedCards = {
+    THEME: cards.filter(c => c.unitType === 'THEME'),
+    ACTION_GATE: cards.filter(c => c.unitType === 'ACTION_GATE'),
+    ACTION_EXPERIMENT: cards.filter(c => c.unitType === 'ACTION_EXPERIMENT'),
+    ACTION_ROUTINE: cards.filter(c => c.unitType === 'ACTION_ROUTINE'),
+    ACTION_OPS: cards.filter(c => c.unitType === 'ACTION_OPS'),
+  };
+
+  const typeLabels: Record<string, string> = {
+    THEME: '🎯 Themes',
+    ACTION_GATE: '🚪 Gates',
+    ACTION_EXPERIMENT: '🧪 Experiments',
+    ACTION_ROUTINE: '🔄 Routines',
+    ACTION_OPS: '⚙️ Ops',
+  };
+
+  const statusOrder = ['in_progress', 'not_started', 'completed', 'abandoned'];
+  const sortByStatus = (a: any, b: any) => {
+    const aIdx = statusOrder.indexOf(a.status || 'not_started');
+    const bIdx = statusOrder.indexOf(b.status || 'not_started');
+    return aIdx - bIdx;
+  };
+
+  const formatStatus = (status?: string) => {
+    if (!status) return '';
+    const labels: Record<string, string> = {
+      in_progress: '▶',
+      not_started: '○',
+      completed: '✓',
+      abandoned: '✗',
+    };
+    return labels[status] || '';
+  };
+
+  const isDeclined = item.selectedSkip === true;
+
+  return (
+    <div
+      style={{
+        background: isDeclined ? 'rgba(220, 38, 38, 0.05)' : 'var(--color-bg)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-4)',
+        marginBottom: 'var(--space-4)',
+        border: isDeclined ? '1px solid #DC2626' : '1px solid var(--color-sage-border-light)',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-3)' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: '15px' }}>{item.event.summary}</div>
+          <div className="text-sm text-muted">{timeStr}</div>
+        </div>
+        {duration && (
+          <span
+            style={{
+              background: 'white',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+              fontWeight: 600,
+              fontSize: '12px',
+            }}
+          >
+            {duration}
+          </span>
+        )}
+        {isDeclined ? (
+          <span
+            style={{
+              background: '#DC2626',
+              color: 'white',
+              padding: '4px 10px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: 600,
+              marginLeft: 'var(--space-4)',
+            }}
+          >
+            ✗ Declined
+          </span>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'var(--space-4)' }}>
+            <span style={{ color: '#F39C12' }}>?</span>
+            <span style={{ fontSize: '12px', color: '#F39C12', fontWeight: 500 }}>Pending</span>
+          </div>
+        )}
+      </div>
+
+      {/* Suggestions */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        {item.suggestions?.map((suggestion) => (
+          <SuggestionOption
+            key={suggestion.cardId}
+            title={suggestion.cardTitle}
+            confidence={suggestion.confidence}
+            isAI={suggestion.source === 'llm'}
+            selected={selectedCardId === suggestion.cardId}
+            isTopSuggestion={suggestion.cardId === topSuggestionCardId}
+            isAutoSelected={isAutoSelected && selectedCardId === suggestion.cardId && suggestion.cardId === topSuggestionCardId}
+            onClick={() => onSelect(suggestion.cardId)}
+          />
+        ))}
+      </div>
+
+      {/* Manual select - moved outside suggestions div */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 'var(--space-3)',
+          padding: 'var(--space-3)',
+          marginTop: 'var(--space-2)',
+          background: 'white',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--color-sage-border-light)',
+          overflow: 'hidden',
+        }}
+      >
+        <span style={{ fontSize: '13px', color: '#666', whiteSpace: 'nowrap' }}>Or select:</span>
+        <select
+          value={selectedCardId ?? ''}
+          onChange={(e) => {
+            const value = e.target.value
+            onSelect(value === '' || value === 'skip' ? null : value)
+          }}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: 'var(--space-2)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--color-sage-border)',
+            fontSize: '14px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          <option value="">Select card...</option>
+          <option value="skip">⏭ Skip / Don't log</option>
+          {Object.entries(groupedCards).map(([type, typeCards]) => {
+            if (typeCards.length === 0) return null;
+            const sorted = [...typeCards].sort(sortByStatus);
+            return (
+              <optgroup key={type} label={typeLabels[type] || type}>
+                {sorted.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {formatStatus(c.status)} {c.title}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          })}
+        </select>
+      </div>
+
+      {/* Remember choice */}
+      <div style={{ marginTop: 'var(--space-3)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--color-sage-border-light)' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={rememberChoice}
+            onChange={(e) => onRememberChange(e.target.checked)}
+            style={{ accentColor: 'var(--color-sage)' }}
+          />
+          <span style={{ fontSize: '12px', color: '#666' }}>
+            Remember this choice for future "{item.event.summary}" events
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function SuggestionOption({
+  title,
+  confidence,
+  isAI,
+  selected,
+  isTopSuggestion,
+  isAutoSelected,
+  onClick,
+}: {
+  title: string;
+  confidence: number;
+  isAI?: boolean;
+  selected: boolean;
+  isTopSuggestion?: boolean;
+  isAutoSelected?: boolean;
+  onClick: () => void;
+}) {
+  // Green highlight for auto-selected top suggestion
+  const showRecommendedHighlight = isAutoSelected && isTopSuggestion;
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--space-4)',
+        padding: 'var(--space-3)',
+        background: showRecommendedHighlight
+          ? 'rgba(39, 174, 96, 0.1)'
+          : selected
+            ? 'rgba(139, 148, 103, 0.1)'
+            : 'white',
+        borderRadius: 'var(--radius-md)',
+        border: showRecommendedHighlight
+          ? '2px solid #27AE60'
+          : selected
+            ? '1px solid var(--color-sage)'
+            : '1px solid var(--color-sage-border-light)',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <span style={{ fontSize: '13px', fontWeight: 500 }}>{title}</span>
+      </div>
+      {showRecommendedHighlight && (
+        <span
+          style={{
+            fontSize: '10px',
+            color: '#27AE60',
+            fontWeight: 600,
+            background: 'rgba(39, 174, 96, 0.15)',
+            padding: '2px 6px',
+            borderRadius: '4px',
+          }}
+        >
+          ✨ Recommended
+        </span>
+      )}
+      {isAI && !showRecommendedHighlight && (
+        <span style={{ fontSize: '10px', color: '#9B59B6' }}>✨ AI suggested</span>
+      )}
+      <span
+        style={{
+          background: 'rgba(139, 148, 103, 0.1)',
+          color: 'var(--color-sage)',
+          padding: '2px 8px',
+          borderRadius: '10px',
+          fontSize: '11px',
+        }}
+      >
+        {Math.round(confidence * 100)}%
+      </span>
+    </div>
+  );
+}
+
+function ThemeCard({ theme }: { theme: ThemeSummary }) {
+  const percentage =
+    theme.plannedHours > 0 ? Math.min(100, (theme.actualHours / theme.plannedHours) * 100) : 0;
+
+  const colors: Record<string, string> = {
+    blue: '#6B7FD7',
+    green: '#27AE60',
+    purple: '#9B59B6',
+    orange: '#F39C12',
+  };
+  const color = colors[theme.color] || '#8B9467';
+
+  return (
+    <div
+      style={{
+        background: 'var(--color-bg)',
+        borderRadius: 'var(--radius-md)',
+        padding: 'var(--space-4)',
+        border: '1px solid var(--color-sage-border-light)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+        <div style={{ width: '4px', height: '24px', borderRadius: '2px', background: color }} />
+        <span style={{ fontWeight: 600, fontSize: '14px' }}>{theme.themeName}</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--space-2)' }}>
+        <span style={{ fontSize: '24px', fontWeight: 600, fontFamily: 'monospace' }}>
+          {theme.actualHours}h
+        </span>
+        <span style={{ fontSize: '13px', color: '#999' }}>of {theme.plannedHours}h planned</span>
+      </div>
+      <div
+        style={{
+          height: '6px',
+          background: 'rgba(139, 148, 103, 0.1)',
+          borderRadius: '3px',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${percentage}%`,
+            background: color,
+            borderRadius: '3px',
+          }}
+        />
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,141 @@
+.rb-stepper-shell {
+  width: 100%;
+  max-width: 720px;
+  border-radius: 24px;
+  border: 1px solid var(--color-sage-border-light);
+  background: linear-gradient(180deg, var(--color-card) 0%, var(--color-bg-secondary) 100%);
+  box-shadow: 0 18px 40px rgba(15, 24, 35, 0.08);
+  padding: 24px;
+}
+
+.rb-stepper-indicators {
+  display: flex;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.rb-stepper-indicator-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.rb-stepper-indicator {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--color-sage-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rb-stepper-indicator.active {
+  border-color: var(--color-sage);
+  background: var(--color-sage);
+  color: white;
+}
+
+.rb-stepper-indicator.complete {
+  border-color: var(--color-sage);
+  background: rgba(139, 148, 103, 0.18);
+  color: var(--color-sage);
+}
+
+.rb-stepper-indicator:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.rb-stepper-connector {
+  height: 2px;
+  flex: 1;
+  margin: 0 10px;
+  background: rgba(139, 148, 103, 0.25);
+}
+
+.rb-stepper-connector.complete {
+  background: var(--color-sage);
+}
+
+.rb-stepper-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: var(--color-text-primary);
+}
+
+.rb-stepper-header p {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rb-stepper-content {
+  margin-top: 18px;
+}
+
+.rb-stepper-footer {
+  margin-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.rb-stepper-back,
+.rb-stepper-next {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rb-stepper-back {
+  background: rgba(139, 148, 103, 0.14);
+  color: var(--color-text-secondary);
+}
+
+.rb-stepper-back:hover:not(:disabled) {
+  background: rgba(139, 148, 103, 0.24);
+}
+
+.rb-stepper-next {
+  background: var(--color-sage);
+  color: white;
+  font-weight: 600;
+}
+
+.rb-stepper-next:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.rb-stepper-back:disabled,
+.rb-stepper-next:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .rb-stepper-shell {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .rb-stepper-header h2 {
+    font-size: 20px;
+  }
+
+  .rb-stepper-indicator {
+    width: 30px;
+    height: 30px;
+  }
+
+  .rb-stepper-connector {
+    margin: 0 8px;
+  }
+}
