@@ -69,16 +69,19 @@ export default function PublicLandingPage() {
           </div>
         )}
         <div className="public-landing__hero-content">
-          <p className="public-landing__kicker">
-            <ShinyText text="Kaizen OS" speed={4} color="#8B9467" shineColor="#f5f1eb" />
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.2rem' }}>
+            <img src="/assets/zenos_logo.png" alt="ZenOS" style={{ width: 44, height: 44, borderRadius: 10 }} />
+            <p className="public-landing__kicker" style={{ margin: 0 }}>
+              <ShinyText text="ZenOS" speed={4} color="#8B9467" shineColor="#f5f1eb" />
+            </p>
+          </div>
           <h1 className="public-landing__headline">Improve the day, and life improves itself.</h1>
           <p className="public-landing__subhead">
             Small deliberate steps, repeated with care, become transformation.
           </p>
 
           <Link to="/login" className="public-landing__cta">
-            Enter Kaizen OS
+            Enter ZenOS
           </Link>
         </div>
       </section>

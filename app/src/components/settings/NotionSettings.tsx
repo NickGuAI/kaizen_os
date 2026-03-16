@@ -178,7 +178,7 @@ export function NotionSettings() {
                     Databases to Sync
                   </h3>
                   <p className="text-xs text-muted" style={{ marginBottom: 'var(--space-3)' }}>
-                    Select databases you want Kaizen OS to access.
+                    Select databases you want ZenOS to access.
                   </p>
 
                   {dbLoading === account.id ? (

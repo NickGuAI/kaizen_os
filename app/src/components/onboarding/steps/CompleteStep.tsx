@@ -206,12 +206,12 @@ export function CompleteStep({ progress, themesCount, season, onComplete }: Prop
           lineHeight: 1.6,
         }}
       >
-        You can always adjust these later. Kaizen is about continuous,
+        You can always adjust these later. ZenOS is about continuous,
         incremental improvement — there's no need to be perfect from the start.
       </p>
 
       <Button onClick={handleGoToDashboard} size="lg">
-        Enter Kaizen OS
+        Enter ZenOS
       </Button>
 
       <p style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', marginTop: 'var(--space-4)' }}>

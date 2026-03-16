@@ -254,7 +254,7 @@ export function ContractForm({ card, onSave, onCancel, onDelete, isCreateMode = 
         <input
           type="text"
           className="field-input"
-          placeholder="What this is. (e.g., 'Launch Kaizen MVP')"
+          placeholder="What this is. (e.g., 'Launch ZenOS MVP')"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />

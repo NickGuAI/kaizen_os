@@ -51,9 +51,9 @@ export default function LoginPage() {
       <CardNav variant="dark" />
 
       <div className="login-card">
-        <div className="login-mark">K</div>
+        <img src="/assets/zenos_logo.png" alt="ZenOS" className="login-mark" style={{ width: 48, height: 48, borderRadius: 10 }} />
         <h1 className="login-title">Welcome back</h1>
-        <p className="login-subtitle">Sign in to continue to Kaizen OS.</p>
+        <p className="login-subtitle">Sign in to continue to ZenOS.</p>
 
         <form onSubmit={handleSubmit} className="login-form">
           <button

@@ -3,13 +3,13 @@ import '../styles/public-landing.css'
 
 export default function PrivacyPolicyPage() {
   return (
-    <main style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px', color: '#e8e4dc', fontFamily: 'inherit' }}>
-      <Link to="/" style={{ color: '#a8b880', textDecoration: 'none', fontSize: 14, marginBottom: 24, display: 'inline-block' }}>&larr; Back to Kaizen OS</Link>
+    <main style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px', color: '#1a1a1a', fontFamily: 'inherit' }}>
+      <Link to="/" style={{ color: '#5a6e3a', textDecoration: 'none', fontSize: 14, marginBottom: 24, display: 'inline-block' }}>&larr; Back to ZenOS</Link>
 
       <h1 style={{ fontSize: 32, marginBottom: 8 }}>Privacy Policy</h1>
-      <p style={{ color: '#999', marginBottom: 32 }}>Effective Date: March 16, 2026 &middot; Last Updated: March 16, 2026</p>
+      <p style={{ color: '#555', marginBottom: 32 }}>Effective Date: March 16, 2026 &middot; Last Updated: March 16, 2026</p>
 
-      <p>Gehirn, Inc. ("Gehirn," "we," "us," or "our") operates KaizenOS (the "Service"). This Privacy Policy describes how we collect, use, and protect your information when you use the Service. By using KaizenOS, you consent to the practices described below.</p>
+      <p>Gehirn, Inc. ("Gehirn," "we," "us," or "our") operates ZenOS (the "Service"). This Privacy Policy describes how we collect, use, and protect your information when you use the Service. By using ZenOS, you consent to the practices described below.</p>
 
       <p><strong>This Service is intended for users located in the United States who are at least 18 years of age.</strong> We do not knowingly collect information from anyone under 18 or from users outside the United States.</p>
 
@@ -62,18 +62,18 @@ export default function PrivacyPolicyPage() {
       <p>The Service integrates with the following third-party services. Each has its own privacy policy governing its use of your data:</p>
       <table style={{ width: '100%', borderCollapse: 'collapse', margin: '16px 0' }}>
         <thead>
-          <tr style={{ borderBottom: '1px solid #444' }}>
+          <tr style={{ borderBottom: '1px solid #ccc' }}>
             <th style={{ textAlign: 'left', padding: 8 }}>Service</th>
             <th style={{ textAlign: 'left', padding: 8 }}>Purpose</th>
           </tr>
         </thead>
         <tbody>
-          <tr style={{ borderBottom: '1px solid #333' }}><td style={{ padding: 8 }}>Supabase</td><td style={{ padding: 8 }}>Database hosting and authentication</td></tr>
-          <tr style={{ borderBottom: '1px solid #333' }}><td style={{ padding: 8 }}>Stripe</td><td style={{ padding: 8 }}>Payment processing</td></tr>
-          <tr style={{ borderBottom: '1px solid #333' }}><td style={{ padding: 8 }}>Google APIs</td><td style={{ padding: 8 }}>Calendar, Tasks, and Sheets integration</td></tr>
-          <tr style={{ borderBottom: '1px solid #333' }}><td style={{ padding: 8 }}>Notion</td><td style={{ padding: 8 }}>Workspace integration</td></tr>
-          <tr style={{ borderBottom: '1px solid #333' }}><td style={{ padding: 8 }}>PostHog</td><td style={{ padding: 8 }}>Product analytics</td></tr>
-          <tr style={{ borderBottom: '1px solid #333' }}><td style={{ padding: 8 }}>Anthropic (Claude)</td><td style={{ padding: 8 }}>AI assistant</td></tr>
+          <tr style={{ borderBottom: '1px solid #ddd' }}><td style={{ padding: 8 }}>Supabase</td><td style={{ padding: 8 }}>Database hosting and authentication</td></tr>
+          <tr style={{ borderBottom: '1px solid #ddd' }}><td style={{ padding: 8 }}>Stripe</td><td style={{ padding: 8 }}>Payment processing</td></tr>
+          <tr style={{ borderBottom: '1px solid #ddd' }}><td style={{ padding: 8 }}>Google APIs</td><td style={{ padding: 8 }}>Calendar, Tasks, and Sheets integration</td></tr>
+          <tr style={{ borderBottom: '1px solid #ddd' }}><td style={{ padding: 8 }}>Notion</td><td style={{ padding: 8 }}>Workspace integration</td></tr>
+          <tr style={{ borderBottom: '1px solid #ddd' }}><td style={{ padding: 8 }}>PostHog</td><td style={{ padding: 8 }}>Product analytics</td></tr>
+          <tr style={{ borderBottom: '1px solid #ddd' }}><td style={{ padding: 8 }}>Anthropic (Claude)</td><td style={{ padding: 8 }}>AI assistant</td></tr>
         </tbody>
       </table>
 
@@ -106,14 +106,15 @@ export default function PrivacyPolicyPage() {
       <p>For questions about this Privacy Policy or to exercise your rights, contact us at:</p>
       <p>
         Gehirn, Inc.<br />
-        10 Provost Street, Unit 1708<br />
-        Jersey City, NJ 07302<br />
+        c/o CSC Compliance Services<br />
+        251 Little Falls Drive<br />
+        Wilmington, DE 19808<br />
         Email: info@gehirn.ai
       </p>
 
-      <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #333', fontSize: 14, color: '#777' }}>
-        <Link to="/terms" style={{ color: '#a8b880', marginRight: 24 }}>Terms of Service</Link>
-        <Link to="/" style={{ color: '#a8b880' }}>Home</Link>
+      <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #ddd', fontSize: 14, color: '#666' }}>
+        <Link to="/terms" style={{ color: '#5a6e3a', marginRight: 24 }}>Terms of Service</Link>
+        <Link to="/" style={{ color: '#5a6e3a' }}>Home</Link>
       </div>
     </main>
   )

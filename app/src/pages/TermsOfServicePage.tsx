@@ -3,13 +3,13 @@ import '../styles/public-landing.css'
 
 export default function TermsOfServicePage() {
   return (
-    <main style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px', color: '#e8e4dc', fontFamily: 'inherit' }}>
-      <Link to="/" style={{ color: '#a8b880', textDecoration: 'none', fontSize: 14, marginBottom: 24, display: 'inline-block' }}>&larr; Back to Kaizen OS</Link>
+    <main style={{ maxWidth: 800, margin: '0 auto', padding: '48px 24px', color: '#1a1a1a', fontFamily: 'inherit' }}>
+      <Link to="/" style={{ color: '#5a6e3a', textDecoration: 'none', fontSize: 14, marginBottom: 24, display: 'inline-block' }}>&larr; Back to ZenOS</Link>
 
       <h1 style={{ fontSize: 32, marginBottom: 8 }}>Terms of Service</h1>
-      <p style={{ color: '#999', marginBottom: 32 }}>Effective Date: March 16, 2026 &middot; Last Updated: March 16, 2026</p>
+      <p style={{ color: '#555', marginBottom: 32 }}>Effective Date: March 16, 2026 &middot; Last Updated: March 16, 2026</p>
 
-      <p>These Terms of Service ("Terms") govern your use of KaizenOS (the "Service"), operated by Gehirn, Inc., a Delaware corporation ("Gehirn," "we," "us," or "our"). By creating an account or using the Service, you agree to these Terms. If you do not agree, do not use the Service.</p>
+      <p>These Terms of Service ("Terms") govern your use of ZenOS (the "Service"), operated by Gehirn, Inc., a Delaware corporation ("Gehirn," "we," "us," or "our"). By creating an account or using the Service, you agree to these Terms. If you do not agree, do not use the Service.</p>
 
       <h2>1. Eligibility</h2>
       <p>You must be at least 18 years of age and located in the United States to use the Service. By using the Service, you represent and warrant that you meet these requirements.</p>
@@ -20,7 +20,7 @@ export default function TermsOfServicePage() {
       <h2>3. Service Plans</h2>
 
       <h3>3.1 Free Plan</h3>
-      <p>The Free plan includes limited access to KaizenOS features, including a single calendar connection, one active theme, and $5 USD/month in AI assistant credits.</p>
+      <p>The Free plan includes limited access to ZenOS features, including a single calendar connection, one active theme, and $5 USD/month in AI assistant credits.</p>
 
       <h3>3.2 Pro Plan ($10/month)</h3>
       <p>The Pro plan includes:</p>
@@ -95,14 +95,15 @@ export default function TermsOfServicePage() {
       <p>For questions about these Terms, contact us at:</p>
       <p>
         Gehirn, Inc.<br />
-        10 Provost Street, Unit 1708<br />
-        Jersey City, NJ 07302<br />
+        c/o CSC Compliance Services<br />
+        251 Little Falls Drive<br />
+        Wilmington, DE 19808<br />
         Email: info@gehirn.ai
       </p>
 
-      <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #333', fontSize: 14, color: '#777' }}>
-        <Link to="/privacy" style={{ color: '#a8b880', marginRight: 24 }}>Privacy Policy</Link>
-        <Link to="/" style={{ color: '#a8b880' }}>Home</Link>
+      <div style={{ marginTop: 48, paddingTop: 24, borderTop: '1px solid #ddd', fontSize: 14, color: '#666' }}>
+        <Link to="/privacy" style={{ color: '#5a6e3a', marginRight: 24 }}>Privacy Policy</Link>
+        <Link to="/" style={{ color: '#5a6e3a' }}>Home</Link>
       </div>
     </main>
   )
