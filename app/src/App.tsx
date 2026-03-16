@@ -16,6 +16,8 @@ import AgentChatPage from './pages/AgentChatPage'
 import LoginPage from './pages/LoginPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import OnboardingPage from './pages/OnboardingPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
+import TermsOfServicePage from './pages/TermsOfServicePage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useAuth } from './lib/authContext'
 import { AppLayout } from './components/layout'
@@ -57,6 +59,8 @@ function App() {
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/privacy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms" element={<TermsOfServicePage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/onboarding" element={<OnboardingPage />} />

@@ -4,9 +4,10 @@
 # Configuration
 APP_DIR := app
 RELEASE_REPO ?= https://github.com/NickGuAI/kaizen_os.git
+RELEASE_PROD_REPO := https://github.com/nickguyai/gehirn-kaizen-os-release.git
 RELEASE_BRANCH := main
 
-.PHONY: help install dev build test lint check clean release-init release
+.PHONY: help install dev build test lint check clean release-init release release-prod
 
 help:
 	@echo "Kaizen OS Commands:"
@@ -14,7 +15,8 @@ help:
 	@echo "  build        - Build for production"
 	@echo "  test         - Run tests"
 	@echo "  release-init - Initialize release repo (one-time)"
-	@echo "  release      - Build and push to Railway"
+	@echo "  release      - Build and push to staging (NickGuAI/kaizen_os)"
+	@echo "  release-prod - Build and push to production (nickguyai/gehirn-kaizen-os-release)"
 
 # Development
 install:
@@ -52,7 +54,7 @@ db-studio:
 clean:
 	rm -rf $(APP_DIR)/dist
 	rm -rf $(APP_DIR)/node_modules/.cache
-	rm -rf release-tmp
+	rm -rf release-tmp release-prod-tmp
 
 # =============================================================================
 # RELEASE WORKFLOW
@@ -97,3 +99,30 @@ release: build
 	cd $(RELEASE_TMP) && git push -u origin $(RELEASE_BRANCH) --force
 	@echo ""
 	@echo "✅ Released to $(RELEASE_REPO)"
+
+# Production release — pushes to gehirn-kaizen-os-release
+RELEASE_PROD_TMP := release-prod-tmp
+
+release-prod: build
+	@if [ ! -d "$(RELEASE_PROD_TMP)/.git" ]; then \
+		echo "Initializing prod release repo..."; \
+		rm -rf $(RELEASE_PROD_TMP); \
+		mkdir -p $(RELEASE_PROD_TMP); \
+		cd $(RELEASE_PROD_TMP) && git init && git remote add origin $(RELEASE_PROD_REPO); \
+	fi
+	@echo "Preparing production release..."
+	rsync -av --delete \
+		--exclude '.git' \
+		--exclude 'node_modules' \
+		--exclude '.env*' \
+		--exclude '.secrets/' \
+		--exclude '/data/' \
+		--exclude 'prisma/dev.db' \
+		--exclude '*.log' \
+		--exclude 'repomix-output.xml' \
+		$(APP_DIR)/ $(RELEASE_PROD_TMP)/
+	cd $(RELEASE_PROD_TMP) && git add -A
+	cd $(RELEASE_PROD_TMP) && git commit -m "Release $$(date +%Y%m%d-%H%M%S)" || true
+	cd $(RELEASE_PROD_TMP) && git push -u origin $(RELEASE_BRANCH) --force
+	@echo ""
+	@echo "✅ Production released to $(RELEASE_PROD_REPO)"

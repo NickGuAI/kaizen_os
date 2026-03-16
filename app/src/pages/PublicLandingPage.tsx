@@ -81,6 +81,11 @@ export default function PublicLandingPage() {
           </Link>
         </div>
       </section>
+
+      <footer style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '24px 0 32px', fontSize: 13, color: '#666' }}>
+        <Link to="/privacy" style={{ color: '#888', marginRight: 20 }}>Privacy Policy</Link>
+        <Link to="/terms" style={{ color: '#888' }}>Terms of Service</Link>
+      </footer>
     </main>
   )
 }
