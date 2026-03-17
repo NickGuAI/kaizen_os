@@ -1,4 +1,5 @@
-import { Routes, Route, useSearchParams, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, useSearchParams, useNavigate, Navigate } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import PublicLandingPage from './pages/PublicLandingPage'
 import WhereAmIPage from './pages/WhereAmIPage'
@@ -55,6 +56,30 @@ function AgentChatScene() {
 }
 
 function App() {
+  const navigate = useNavigate()
+
+  // Native macOS app: handle OAuth callback from kaizenos:// deep link.
+  // The native app dispatches 'kaizen:native-oauth' with the callback URL.
+  // We navigate to /auth/callback?code=xxx so AuthCallbackPage can exchange
+  // (code_verifier stays in sessionStorage — native app must NOT reload first).
+  useEffect(() => {
+    const handler = (e: CustomEvent<{ callbackUrl: string }>) => {
+      const url = e.detail?.callbackUrl
+      if (!url) return
+      try {
+        const parsed = new URL(url)
+        const code = parsed.searchParams.get('code') ?? parsed.hash.match(/[?&]code=([^&]+)/)?.[1]
+        if (code) {
+          navigate(`/auth/callback?code=${encodeURIComponent(code)}`, { replace: true })
+        }
+      } catch {
+        console.warn('[auth] Failed to parse native OAuth callback URL')
+      }
+    }
+    window.addEventListener('kaizen:native-oauth', handler as EventListener)
+    return () => window.removeEventListener('kaizen:native-oauth', handler as EventListener)
+  }, [navigate])
+
   return (
     <div className="app">
       <Routes>

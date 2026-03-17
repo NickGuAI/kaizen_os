@@ -15,6 +15,14 @@ struct KaizenWebView: NSViewRepresentable {
         config.websiteDataStore = .default()
         config.defaultWebpagePreferences.allowsContentJavaScript = true
 
+        // Inject native app flag so the web app can use kaizenos:// redirect for OAuth
+        let nativeFlagScript = WKUserScript(
+            source: "window.__KAIZEN_NATIVE_APP = true;",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        config.userContentController.addUserScript(nativeFlagScript)
+
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
@@ -80,9 +88,11 @@ struct KaizenWebView: NSViewRepresentable {
                 .replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "'", with: "\\'")
 
+            // Do NOT reload here — the PKCE code_verifier is in sessionStorage.
+            // Reloading would clear it and break exchangeCodeForSession.
+            // The web app listens for this event, exchanges the code, then navigates.
             let script = """
             window.dispatchEvent(new CustomEvent('kaizen:native-oauth', { detail: { callbackUrl: '\(payload)' } }));
-            window.location.reload();
             """
 
             webView.evaluateJavaScript(script) { _, error in

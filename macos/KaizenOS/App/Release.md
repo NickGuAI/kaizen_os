@@ -33,3 +33,8 @@ xcrun stapler staple build/export/KaizenOS.app
 - Launch app from clean machine.
 - Verify `kaizenos://oauth/google` callback opens app and reloads Kaizen session.
 - Verify Google OAuth page is always shown in system browser.
+
+## Supabase Auth (Google Sign-in)
+For Google Sign-in to work in the native app, add `kaizenos://auth/callback` to your Supabase project:
+1. Supabase Dashboard → Authentication → URL Configuration
+2. Add `kaizenos://auth/callback` to **Redirect URLs**
