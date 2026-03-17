@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/authContext'
 import { useUserSettings } from '../hooks/useUserSettings'
 import { useThemes } from '../hooks/useCards'
+import ZenosLoading from './ZenosLoading'
 
 export function getOnboardingGateState(params: {
   completedAt: string | null | undefined
@@ -29,7 +30,7 @@ export default function ProtectedRoute() {
   const { data: themes, isLoading: themesLoading } = useThemes({ enabled: shouldLoadThemes })
 
   if (authLoading) {
-    return <div className="app" style={{ padding: 24 }}>Loading...</div>
+    return <ZenosLoading />
   }
 
   if (!user) {
@@ -38,12 +39,12 @@ export default function ProtectedRoute() {
 
   // Wait for settings to load before checking onboarding.
   if (settingsLoading) {
-    return <div className="app" style={{ padding: 24 }}>Loading...</div>
+    return <ZenosLoading />
   }
 
   // Only load themes for legacy compatibility when completion flag is missing.
   if (shouldLoadThemes && themesLoading) {
-    return <div className="app" style={{ padding: 24 }}>Loading...</div>
+    return <ZenosLoading />
   }
 
   const gate = getOnboardingGateState({

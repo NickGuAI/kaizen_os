@@ -19,6 +19,7 @@ import OnboardingPage from './pages/OnboardingPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import TermsOfServicePage from './pages/TermsOfServicePage'
 import ProtectedRoute from './components/ProtectedRoute'
+import ZenosLoading from './components/ZenosLoading'
 import { useAuth } from './lib/authContext'
 import { AppLayout } from './components/layout'
 
@@ -35,7 +36,7 @@ function RootRoute() {
   const { user, loading } = useAuth()
 
   if (loading) {
-    return <div className="app" style={{ padding: 24 }}>Loading...</div>
+    return <ZenosLoading />
   }
 
   if (user) {

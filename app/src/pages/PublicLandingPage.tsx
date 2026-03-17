@@ -35,19 +35,19 @@ export default function PublicLandingPage() {
 
   return (
     <main className="public-landing">
-      <CardNav variant="dark" />
+      <CardNav variant="light" />
 
       <div className="public-landing__rays" aria-hidden="true">
         {!prefersReducedMotion && (
           <LightRays
             raysOrigin="top-center"
-            raysColor="#a8b880"
+            raysColor="#c8cdb0"
             raysSpeed={0.5}
             lightSpread={2.0}
             rayLength={3.0}
             pulsating
             fadeDistance={1.6}
-            saturation={0.85}
+            saturation={0.45}
             followMouse
             mouseInfluence={0.1}
             noiseAmount={0.03}
@@ -72,7 +72,7 @@ export default function PublicLandingPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '0.2rem' }}>
             <img src="/assets/zenos_logo.png" alt="ZenOS" style={{ width: 44, height: 44, borderRadius: 10 }} />
             <p className="public-landing__kicker" style={{ margin: 0 }}>
-              <ShinyText text="ZenOS" speed={4} color="#8B9467" shineColor="#f5f1eb" />
+              <ShinyText text="ZenOS" speed={4} color="#8B9467" shineColor="#FFFFFF" />
             </p>
           </div>
           <h1 className="public-landing__headline">Improve the day, and life improves itself.</h1>
