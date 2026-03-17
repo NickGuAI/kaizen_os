@@ -126,6 +126,36 @@
   color: #1A1A1A;
 }
 
+.date-nav-sync {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid rgba(139, 148, 103, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #999;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.date-nav-sync:hover {
+  color: #666;
+  background: rgba(139, 148, 103, 0.05);
+  border-color: rgba(139, 148, 103, 0.35);
+}
+
+.date-nav-sync:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ==================== LAYOUT WRAPPER ==================== */
 .kaizen-card-nav-shell {
   border-bottom: 1px solid rgba(139, 148, 103, 0.12);

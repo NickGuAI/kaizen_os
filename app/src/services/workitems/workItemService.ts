@@ -115,7 +115,27 @@ export async function getWorkItemsForDay(
     }
   }
 
-  // 5. Convert back to array, attach overlays, then sort by playlistRank (nulls last)
+  // 5. Exclude explicitly parked items (WorkItemLink exists with plannedForDate = null)
+  //    These were dragged to Parking Lot but still have a Google Tasks due date
+  const allKeys = Array.from(tasksByKey.keys());
+  if (allKeys.length > 0) {
+    const parkedLinks = await prisma.workItemLink.findMany({
+      where: {
+        userId,
+        workItemKey: { in: allKeys },
+        plannedForDate: null,
+      },
+      select: { workItemKey: true },
+    });
+    for (const link of parkedLinks) {
+      // Remove from day view if explicitly parked (not also planned for this date)
+      if (!plannedLinks.some(l => l.workItemKey === link.workItemKey)) {
+        tasksByKey.delete(link.workItemKey);
+      }
+    }
+  }
+
+  // 6. Convert back to array, attach overlays, then sort by playlistRank (nulls last)
   const mergedTasks = Array.from(tasksByKey.values());
   const withOverlays = await attachOverlays(userId, date, mergedTasks);
   withOverlays.sort((a, b) => {

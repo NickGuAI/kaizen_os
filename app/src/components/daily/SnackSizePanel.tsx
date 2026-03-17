@@ -122,7 +122,7 @@ export function SnackSizePanel({
       className={`daily-plan-section snack-size-panel ${isOver ? 'parking-drop-target' : ''}`}
     >
       <div className="daily-plan-section-header snack-header">
-        <span className="daily-plan-section-title">Snack-Size To-Do's — In Between Meetings (&lt;10 min)</span>
+        <span className="daily-plan-section-title">Daily ToDos</span>
       </div>
       <div className="snack-items-list">
         {loading && <div className="loading-state">Loading snack tasks...</div>}

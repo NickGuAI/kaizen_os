@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, Input, Select, Textarea } from '../components/ui'
+import { Button, Card, Input, Select } from '../components/ui'
 import { useUserSettings, useUpdateUserSettings } from '../hooks/useUserSettings'
 import { useSubscription, useCreateCheckoutSession, useCreatePortalSession } from '../hooks/useSubscription'
-import { KAIZEN_DB_TOOLS, BUILT_IN_TOOLS, CALENDAR_TOOLS, KaizenDbTool, UserSettings, DEFAULT_USER_SETTINGS } from '../services/userSettingsTypes'
+import { KAIZEN_DB_TOOLS, CALENDAR_TOOLS, KaizenDbTool, UserSettings, DEFAULT_USER_SETTINGS } from '../services/userSettingsTypes'
 import { ProviderSettings } from '../components/settings/ProviderSettings'
 import { NotionSettings } from '../components/settings/NotionSettings'
 import { TimezoneSettings } from '../components/settings/TimezoneSettings'
@@ -21,7 +21,6 @@ export default function SettingsPage() {
   const createPortal = useCreatePortalSession()
   const updateSettings = useUpdateUserSettings()
   const [form, setForm] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
-  const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
     if (settings) {
@@ -40,13 +39,6 @@ export default function SettingsPage() {
 
   const handleChange = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
     setForm(prev => ({ ...prev, [key]: value }))
-  }
-
-  const handleBuiltinToolToggle = (tool: string) => {
-    const tools = form.agentBuiltinTools.includes(tool)
-      ? form.agentBuiltinTools.filter(t => t !== tool)
-      : [...form.agentBuiltinTools, tool]
-    handleChange('agentBuiltinTools', tools)
   }
 
   const handleMcpToolToggle = (toolKey: string) => {
@@ -129,6 +121,16 @@ export default function SettingsPage() {
                 <Input label="Duration (Weeks)" type="number" value={form.defaultSeasonWeeks} onChange={(e) => handleChange('defaultSeasonWeeks', parseInt(e.target.value))} />
                 <Input label="Lag (Weeks)" type="number" value={form.defaultLagWeeks} onChange={(e) => handleChange('defaultLagWeeks', parseInt(e.target.value))} />
               </div>
+            </Card>
+
+            <Card>
+              <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Classification Rules</h3>
+              <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)' }}>
+                Auto-assign calendar events to actions based on title patterns.
+              </p>
+              <Button variant="secondary" onClick={() => navigate('/settings/rules')}>
+                Manage Rules →
+              </Button>
             </Card>
           </div>
 
@@ -290,248 +292,118 @@ export default function SettingsPage() {
                 Log Out
               </Button>
             </Card>
-          </div>
-        </div>
 
-        {/* Advanced Settings - Collapsible */}
-        <div style={{ marginTop: 32 }}>
-          <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '12px 16px',
-              background: 'var(--color-bg-secondary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--color-text)',
-              width: '100%',
-              textAlign: 'left',
-            }}
-          >
-            <span style={{ fontSize: 12 }}>{showAdvanced ? '▼' : '▶'}</span>
-            Advanced Settings
-          </button>
-
-          {showAdvanced && (
-            <div className="settings-grid" style={{ marginTop: 16 }}>
-              {/* Advanced Column 1: Agent Tools */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-                <h2 style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-sage)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>
-                  Agent Tools
-                </h2>
-
-                <Card>
-                  <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Tools</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div>
-                      <label className="text-xs font-medium text-secondary uppercase mb-2 block">Built-in</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10, background: 'var(--color-bg-secondary)', borderRadius: 6, fontSize: 13 }}>
-                        {Object.entries(BUILT_IN_TOOLS).map(([key, tool]) => (
-                          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={form.agentBuiltinTools.includes(key)} onChange={() => handleBuiltinToolToggle(key)} />
-                            <span style={{ fontWeight: 500 }}>{tool.name}</span>
-                            {!tool.safe && <span style={{ color: 'var(--color-warning)', fontSize: 10 }}>⚠️</span>}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-medium text-secondary uppercase mb-2 block">DB Read</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10, background: 'var(--color-bg-secondary)', borderRadius: 6, fontSize: 13 }}>
-                        {readTools.map(([key, tool]) => (
-                          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={form.agentAllowedTools.includes(key)} onChange={() => handleMcpToolToggle(key)} />
-                            <span style={{ fontWeight: 500 }}>{tool.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-medium text-secondary uppercase mb-2 block">
-                        DB Write <span style={{ color: 'var(--color-warning)', fontSize: 10 }}>⚠️</span>
+            <Card>
+              <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Agent Tools</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div>
+                  <label className="text-xs font-medium text-secondary uppercase mb-2 block">DB Read</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10, background: 'var(--color-bg-secondary)', borderRadius: 6, fontSize: 13 }}>
+                    {readTools.map(([key, tool]) => (
+                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={form.agentAllowedTools.includes(key)} onChange={() => handleMcpToolToggle(key)} />
+                        <span style={{ fontWeight: 500 }}>{tool.name}</span>
                       </label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10, background: 'var(--color-bg-secondary)', borderRadius: 6, fontSize: 13, border: '1px solid #e5a00d33' }}>
-                        {writeTools.map(([key, tool]) => (
-                          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input type="checkbox" checked={form.agentAllowedTools.includes(key)} onChange={() => handleMcpToolToggle(key)} />
-                            <span style={{ fontWeight: 500 }}>{tool.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                </Card>
+                </div>
 
-                <Card>
-                  <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Calendar Tools</h3>
-                  <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)' }}>
-                    Allow agent to create, update, or delete events on your Google Calendar.
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div>
-                      <label className="text-xs font-medium text-secondary uppercase mb-2 block">
-                        Write Tools <span style={{ color: 'var(--color-warning)', fontSize: 10 }}>⚠️</span>
+                <div>
+                  <label className="text-xs font-medium text-secondary uppercase mb-2 block">
+                    DB Write <span style={{ color: 'var(--color-warning)', fontSize: 10 }}>⚠️</span>
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10, background: 'var(--color-bg-secondary)', borderRadius: 6, fontSize: 13, border: '1px solid #e5a00d33' }}>
+                    {writeTools.map(([key, tool]) => (
+                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={form.agentAllowedTools.includes(key)} onChange={() => handleMcpToolToggle(key)} />
+                        <span style={{ fontWeight: 500 }}>{tool.name}</span>
                       </label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10, background: 'var(--color-bg-secondary)', borderRadius: 6, fontSize: 13, border: '1px solid #e5a00d33' }}>
-                        {calendarWriteTools.map(([key, tool]) => (
-                          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={form.agentCalendarTools.includes(key)}
-                              onChange={() => handleCalendarToolToggle(key)}
-                            />
-                            <span style={{ fontWeight: 500 }}>{tool.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Card>
 
-                    {calendarDeleteTool && (
-                      <div>
-                        <label className="text-xs font-medium text-secondary uppercase mb-2 block" style={{ color: '#dc2626' }}>
-                          Destructive Tools
-                        </label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, background: '#ff000008', borderRadius: 6, fontSize: 13, border: '1px solid #ff000033' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: form.agentCalendarDeleteAcknowledged ? 'pointer' : 'not-allowed', opacity: form.agentCalendarDeleteAcknowledged ? 1 : 0.5 }}>
-                            <input
-                              type="checkbox"
-                              // Both conditions required: tool in list AND deleteEnabled flag (defense in depth)
-                              checked={form.agentCalendarTools.includes(calendarDeleteTool[0]) && form.agentCalendarDeleteEnabled}
-                              disabled={!form.agentCalendarDeleteAcknowledged}
-                              onChange={() => {
-                                const isCurrentlyEnabled = form.agentCalendarTools.includes(calendarDeleteTool[0])
-                                const newTools = isCurrentlyEnabled
-                                  ? form.agentCalendarTools.filter(t => t !== calendarDeleteTool[0])
-                                  : [...form.agentCalendarTools, calendarDeleteTool[0]]
-                                // Atomic update: both fields in single setForm call
+            <Card>
+              <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Calendar Tools</h3>
+              <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)' }}>
+                Allow agent to create, update, or delete events on your Google Calendar.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div>
+                  <label className="text-xs font-medium text-secondary uppercase mb-2 block">
+                    Write Tools <span style={{ color: 'var(--color-warning)', fontSize: 10 }}>⚠️</span>
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 10, background: 'var(--color-bg-secondary)', borderRadius: 6, fontSize: 13, border: '1px solid #e5a00d33' }}>
+                    {calendarWriteTools.map(([key, tool]) => (
+                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={form.agentCalendarTools.includes(key)}
+                          onChange={() => handleCalendarToolToggle(key)}
+                        />
+                        <span style={{ fontWeight: 500 }}>{tool.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {calendarDeleteTool && (
+                  <div>
+                    <label className="text-xs font-medium text-secondary uppercase mb-2 block" style={{ color: '#dc2626' }}>
+                      Destructive Tools
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, background: '#ff000008', borderRadius: 6, fontSize: 13, border: '1px solid #ff000033' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: form.agentCalendarDeleteAcknowledged ? 'pointer' : 'not-allowed', opacity: form.agentCalendarDeleteAcknowledged ? 1 : 0.5 }}>
+                        <input
+                          type="checkbox"
+                          checked={form.agentCalendarTools.includes(calendarDeleteTool[0]) && form.agentCalendarDeleteEnabled}
+                          disabled={!form.agentCalendarDeleteAcknowledged}
+                          onChange={() => {
+                            const isCurrentlyEnabled = form.agentCalendarTools.includes(calendarDeleteTool[0])
+                            const newTools = isCurrentlyEnabled
+                              ? form.agentCalendarTools.filter(t => t !== calendarDeleteTool[0])
+                              : [...form.agentCalendarTools, calendarDeleteTool[0]]
+                            setForm(prev => ({
+                              ...prev,
+                              agentCalendarTools: newTools,
+                              agentCalendarDeleteEnabled: !isCurrentlyEnabled,
+                            }))
+                          }}
+                        />
+                        <span style={{ fontWeight: 500 }}>{calendarDeleteTool[1].name}</span>
+                      </label>
+                      <p style={{ fontSize: 11, color: '#dc2626', marginLeft: 22 }}>
+                        This allows the agent to permanently delete events from your Google Calendar. This action CANNOT be undone.
+                      </p>
+                      <div style={{ marginTop: 4, marginLeft: 22, padding: 8, background: '#fff', borderRadius: 4, border: '1px solid #ff000022' }}>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: 'pointer', fontSize: 12 }}>
+                          <input
+                            type="checkbox"
+                            checked={form.agentCalendarDeleteAcknowledged}
+                            onChange={(e) => {
+                              if (!e.target.checked) {
                                 setForm(prev => ({
                                   ...prev,
-                                  agentCalendarTools: newTools,
-                                  agentCalendarDeleteEnabled: !isCurrentlyEnabled,
+                                  agentCalendarDeleteAcknowledged: false,
+                                  agentCalendarDeleteEnabled: false,
+                                  agentCalendarTools: prev.agentCalendarTools.filter(t => t !== calendarDeleteTool[0]),
                                 }))
-                              }}
-                            />
-                            <span style={{ fontWeight: 500 }}>{calendarDeleteTool[1].name}</span>
-                          </label>
-                          <p style={{ fontSize: 11, color: '#dc2626', marginLeft: 22 }}>
-                            This allows the agent to permanently delete events from your Google Calendar. This action CANNOT be undone.
-                          </p>
-                          <div style={{ marginTop: 4, marginLeft: 22, padding: 8, background: '#fff', borderRadius: 4, border: '1px solid #ff000022' }}>
-                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 6, cursor: 'pointer', fontSize: 12 }}>
-                              <input
-                                type="checkbox"
-                                checked={form.agentCalendarDeleteAcknowledged}
-                                onChange={(e) => {
-                                  if (!e.target.checked) {
-                                    // Atomic update: clear all delete-related state together
-                                    setForm(prev => ({
-                                      ...prev,
-                                      agentCalendarDeleteAcknowledged: false,
-                                      agentCalendarDeleteEnabled: false,
-                                      agentCalendarTools: prev.agentCalendarTools.filter(t => t !== calendarDeleteTool[0]),
-                                    }))
-                                  } else {
-                                    handleChange('agentCalendarDeleteAcknowledged', true)
-                                  }
-                                }}
-                                style={{ marginTop: 2 }}
-                              />
-                              <span>I understand that deleted events cannot be recovered</span>
-                            </label>
-                          </div>
-                        </div>
+                              } else {
+                                handleChange('agentCalendarDeleteAcknowledged', true)
+                              }
+                            }}
+                            style={{ marginTop: 2 }}
+                          />
+                          <span>I understand that deleted events cannot be recovered</span>
+                        </label>
                       </div>
-                    )}
-                  </div>
-                </Card>
-              </div>
-
-              {/* Advanced Column 2: Permissions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-                <h2 style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-sage)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>
-                  Permissions
-                </h2>
-
-                <Card>
-                  <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Agent Permissions</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div style={{ padding: 12, background: '#ff000008', borderRadius: 6, border: '1px solid #ff000022' }}>
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                        <input type="checkbox" checked={form.agentAllowBash} onChange={(e) => handleChange('agentAllowBash', e.target.checked)} style={{ marginTop: 2 }} />
-                        <div>
-                          <span style={{ fontWeight: 500 }}>Allow Bash</span>
-                          <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>⚠️ Cannot be rolled back</p>
-                        </div>
-                      </label>
                     </div>
-
-                    <Select
-                      label="Permission Mode"
-                      value={form.agentPermissionMode}
-                      onChange={(e) => handleChange('agentPermissionMode', e.target.value as UserSettings['agentPermissionMode'])}
-                      options={[
-                        { value: 'default', label: 'Default' },
-                        { value: 'acceptEdits', label: 'Accept Edits' },
-                        { value: 'bypassPermissions', label: 'Bypass All' }
-                      ]}
-                    />
-
-                    <Textarea
-                      label="Custom System Prompt"
-                      value={form.agentSystemPrompt}
-                      onChange={(e) => handleChange('agentSystemPrompt', e.target.value)}
-                      placeholder="Optional custom instructions..."
-                      rows={2}
-                    />
                   </div>
-                </Card>
-
-                <Card>
-                  <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Classification Rules</h3>
-                  <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)' }}>
-                    Auto-assign calendar events to actions based on title patterns.
-                  </p>
-                  <Button variant="secondary" onClick={() => navigate('/settings/rules')}>
-                    Manage Rules →
-                  </Button>
-                </Card>
+                )}
               </div>
-
-              {/* Advanced Column 3: Developer */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-                <h2 style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-sage)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>
-                  Developer
-                </h2>
-
-                <Card>
-                  <h3 className="text-md font-semibold" style={{ marginBottom: 'var(--space-3)' }}>Debug Options</h3>
-                  <div style={{ padding: 12, background: 'var(--color-bg-secondary)', borderRadius: 6 }}>
-                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: 13 }}>
-                      <input
-                        type="checkbox"
-                        checked={form.debugMode}
-                        onChange={(e) => handleChange('debugMode', e.target.checked)}
-                        style={{ marginTop: 2 }}
-                      />
-                      <div>
-                        <span style={{ fontWeight: 500 }}>Debug Mode</span>
-                        <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                          Show event classification details in planning view.
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                </Card>
-              </div>
-            </div>
-          )}
+            </Card>
+          </div>
         </div>
 
         <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>

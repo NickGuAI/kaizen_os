@@ -1209,6 +1209,7 @@ export default function LandingPage() {
           currentDate={currentDate}
           onViewModeChange={handleViewModeChange}
           onDateChange={handleDateChange}
+          onSyncComplete={() => queryClient.invalidateQueries({ queryKey: ['calendarEvents'] })}
         />
 
         {/* Content Area */}

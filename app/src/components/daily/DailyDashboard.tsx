@@ -1,7 +1,7 @@
 // Daily Dashboard (Execution Mode) - Default view for day-to-day task management
 // Layout: Two-column (left: Top3 + Snack + ParkingLot + Season Vetoes + TomorrowTop3, right: HourByHour)
 import { useMemo, useCallback, useEffect, useState } from 'react'
-import { format, parseISO, isWithinInterval, addDays } from 'date-fns'
+import { format, parseISO, isWithinInterval } from 'date-fns'
 import { closestCenter, DndContext, PointerSensor, type DragEndEvent, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { useQuery } from '@tanstack/react-query'
@@ -9,7 +9,6 @@ import { apiFetch } from '../../lib/apiFetch'
 import { PARKING_DROP_ZONE_ID, ParkingLotPanel } from './ParkingLotPanel'
 import { SNACK_DROP_ZONE_ID, SnackSizePanel } from './SnackSizePanel'
 import { VetoCarousel } from './VetoCarousel'
-import { TomorrowTop3Panel } from './TomorrowTop3Panel'
 import { HourByHourPanel } from './HourByHourPanel'
 import type { CardWithActionCount } from '../../lib/api'
 import type { WorkItem } from '../../services/workitems/WorkItemTypes'
@@ -51,7 +50,6 @@ function buildEventKey(event: CalendarEvent): string | undefined {
 // while loading, which triggers useEffect → setState → re-render → loop.
 const EMPTY_WORK_ITEMS: WorkItemWithOverlays[] = []
 const EMPTY_EVENTS: CalendarEvent[] = []
-const EMPTY_TOMORROW: WorkItemWithOverlays[] = []
 
 export function DailyDashboard({ date, themes }: DailyDashboardProps) {
   const completeMutation = useCompleteWorkItem(date)
@@ -103,25 +101,6 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
     },
   })
 
-  const tomorrowDate = useMemo(() => format(addDays(parseISO(date), 1), 'yyyy-MM-dd'), [date])
-
-  const { data: tomorrowFocus } = useQuery<{ date: string; topKeys: string[] }>({
-    queryKey: ['workitems', 'focus', tomorrowDate],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/workitems/focus?date=${tomorrowDate}`, {})
-      if (!res.ok) throw new Error('Failed to fetch tomorrow focus')
-      return res.json()
-    },
-  })
-
-  const { data: tomorrowWorkItems = EMPTY_TOMORROW } = useQuery<WorkItemWithOverlays[]>({
-    queryKey: ['workitems', 'day', tomorrowDate],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/workitems/day?date=${tomorrowDate}`, {})
-      if (!res.ok) throw new Error('Failed to fetch tomorrow workitems')
-      return res.json()
-    },
-  })
 
   const top3Keys = useMemo(() => dailyFocus?.topKeys || [], [dailyFocus])
   const playlist = workItems
@@ -135,13 +114,6 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
     }),
     [top3Keys, workItems],
   )
-
-  const tomorrowTop3Items = useMemo(() => {
-    const tKeys = tomorrowFocus?.topKeys || []
-    return tKeys
-      .map((key: string) => tomorrowWorkItems.find((item) => item.key === key))
-      .filter((item): item is WorkItemWithOverlays => !!item)
-  }, [tomorrowFocus, tomorrowWorkItems])
 
   // No block-selection in the new daily plan layout; use full playlist
   const filteredPlaylist = playlist
@@ -315,7 +287,6 @@ export function DailyDashboard({ date, themes }: DailyDashboardProps) {
               loading={loadingWorkItems}
               date={date}
             />
-            <TomorrowTop3Panel items={tomorrowTop3Items} loading={false} />
           </div>
 
           {/* Right Column: Hour-by-Hour */}
