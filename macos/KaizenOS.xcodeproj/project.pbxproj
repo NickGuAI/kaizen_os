@@ -10,6 +10,7 @@
 		KZ001001 /* KaizenOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = KZ001101 /* KaizenOSApp.swift */; };
 		KZ001002 /* KaizenWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = KZ001102 /* KaizenWebView.swift */; };
 		KZ001003 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = KZ001103 /* AppConfiguration.swift */; };
+		KZ001004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = KZ001105 /* Assets.xcassets */; };
 		KZ001005 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = KZ001201 /* AppKit.framework */; };
 		KZ001006 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = KZ001202 /* WebKit.framework */; };
 		KZ001007 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = KZ001203 /* SwiftUI.framework */; };
@@ -21,6 +22,7 @@
 		KZ001102 /* KaizenWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaizenWebView.swift; sourceTree = "<group>"; };
 		KZ001103 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
 		KZ001104 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		KZ001105 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		KZ001201 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		KZ001202 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		KZ001203 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -63,6 +65,7 @@
 				KZ001102 /* KaizenWebView.swift */,
 				KZ001103 /* AppConfiguration.swift */,
 				KZ001104 /* Info.plist */,
+				KZ001105 /* Assets.xcassets */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -143,6 +146,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				KZ001004 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
