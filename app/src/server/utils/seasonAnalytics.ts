@@ -6,6 +6,7 @@ const ACTION_UNIT_TYPES = [
   'ACTION_ROUTINE',
   'ACTION_OPS',
 ] as const satisfies UnitType[]
+type ActionUnitType = (typeof ACTION_UNIT_TYPES)[number]
 
 const COMPLETION_EVENT_TYPES = new Set<EventType>([
   'gate_completed',
@@ -31,6 +32,10 @@ export interface AnalyticsCardInput {
   startDate: Date | null
   targetDate: Date | null
   completionDate: Date | null
+}
+
+type AnalyticsActionCardInput = AnalyticsCardInput & {
+  unitType: ActionUnitType
 }
 
 export interface AnalyticsEventInput {
@@ -76,12 +81,18 @@ function hasSeasonId(payload: unknown, seasonId: string): boolean {
   return (payload as Record<string, unknown>).season_id === seasonId
 }
 
+function isActionUnitType(unitType: UnitType): unitType is ActionUnitType {
+  return ACTION_UNIT_TYPES.includes(unitType as ActionUnitType)
+}
+
 export function buildSeasonAnalytics(
   seasons: AnalyticsSeasonInput[],
   cards: AnalyticsCardInput[],
   events: AnalyticsEventInput[]
 ): SeasonAnalyticsResult[] {
-  const actionCards = cards.filter(card => ACTION_UNIT_TYPES.includes(card.unitType))
+  const actionCards: AnalyticsActionCardInput[] = cards.filter(
+    (card): card is AnalyticsActionCardInput => isActionUnitType(card.unitType)
+  )
   const eventsByCardId = new Map<string, AnalyticsEventInput[]>()
 
   for (const event of events) {

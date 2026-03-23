@@ -620,18 +620,19 @@ export class EventService {
           season,
           reviewedCards: reviewedCardsForSnapshot,
         })
+        const payload: Prisma.InputJsonObject = {
+          season_id: season.id,
+          season_name: season.name,
+          source: 'end_season_review',
+          submission_id: submissionId,
+          review_snapshot: snapshot as unknown as Prisma.InputJsonObject,
+        }
 
         await tx.event.create({
           data: {
             userId,
             eventType: 'season_ended',
-            payload: {
-              season_id: season.id,
-              season_name: season.name,
-              source: 'end_season_review',
-              submission_id: submissionId,
-              review_snapshot: snapshot,
-            },
+            payload,
           },
         })
       }

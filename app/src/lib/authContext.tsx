@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { getAccessToken, setAccessToken } from './authToken'
 import { supabase } from './supabaseClient'
 
@@ -58,6 +58,7 @@ async function fetchCurrentUser(token?: string | null): Promise<AuthUser | null>
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const initialRefreshDone = useRef(false)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -66,8 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let hasSupabaseSession = false
 
       if (supabase) {
-        const { data } = await supabase.auth.getSession()
-        if (data.session?.access_token) {
+        // Timeout getSession to avoid navigator.locks deadlock (Supabase JS v2.60+)
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+        ])
+        const data = sessionResult && 'data' in sessionResult ? sessionResult.data : null
+        if (data?.session?.access_token) {
           hasSupabaseSession = true
           sessionToken = data.session.access_token
           setAccessToken(sessionToken, data.session.expires_at ? data.session.expires_at * 1000 : undefined)
@@ -118,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       setAccessToken(null)
     } finally {
+      initialRefreshDone.current = true
       setLoading(false)
     }
   }, [])
@@ -139,10 +146,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Always keep the token in sync
       setAccessToken(
         session.access_token,
         session.expires_at ? session.expires_at * 1000 : undefined
       )
+
+      // During initial refresh(), skip — refresh() handles user loading.
+      // Only call fetchCurrentUser for subsequent auth state changes
+      // (e.g. user signs in from another tab, token auto-refresh).
+      if (!initialRefreshDone.current) {
+        return
+      }
+
       void (async () => {
         try {
           const currentUser = await fetchCurrentUser(session.access_token)

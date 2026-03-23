@@ -2,17 +2,23 @@
  * Supabase Auth Provider
  *
  * Wraps Supabase Auth for user authentication.
- * Uses JWT tokens instead of HMAC-signed cookies.
+ * Supports both HS256 (legacy anon key) and ES256 (new publishable key) JWTs.
+ * ES256 tokens are verified locally via JWKS since GoTrue's /auth/v1/user
+ * endpoint doesn't yet support ES256 JWTs without a kid header.
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import * as jose from 'jose'
 import { AuthProvider, AuthResult, Session } from './types'
 
 export class SupabaseAuthProvider implements AuthProvider {
   private client: SupabaseClient
+  private supabaseUrl: string
+  private jwks: ReturnType<typeof jose.createRemoteJWKSet> | null = null
 
   constructor(supabaseUrl: string, supabaseAnonKey: string) {
     this.client = createClient(supabaseUrl, supabaseAnonKey)
+    this.supabaseUrl = supabaseUrl
   }
 
   async signIn(email: string, password: string): Promise<AuthResult | null> {
@@ -116,17 +122,43 @@ export class SupabaseAuthProvider implements AuthProvider {
   }
 
   async verifyToken(token: string): Promise<Session | null> {
-    // Get user from JWT
+    // Try getUser first (works for HS256 / legacy anon key tokens)
     const { data, error } = await this.client.auth.getUser(token)
-
-    if (error || !data.user) {
-      return null
+    if (!error && data.user) {
+      return {
+        userId: data.user.id,
+        email: data.user.email!,
+        accessToken: token,
+      }
     }
 
-    return {
-      userId: data.user.id,
-      email: data.user.email!,
-      accessToken: token,
+    // Fallback: verify ES256 JWT locally via JWKS.
+    // New Supabase publishable keys produce ES256 JWTs that GoTrue's
+    // /auth/v1/user endpoint can't verify yet (missing kid in header).
+    try {
+      if (!this.jwks) {
+        const jwksUrl = new URL('/auth/v1/.well-known/jwks.json', this.supabaseUrl)
+        this.jwks = jose.createRemoteJWKSet(jwksUrl)
+      }
+
+      const { payload } = await jose.jwtVerify(token, this.jwks, {
+        issuer: `${this.supabaseUrl}/auth/v1`,
+      })
+
+      const sub = payload.sub
+      const email = (payload as Record<string, unknown>).email as string | undefined
+      if (!sub) {
+        return null
+      }
+
+      return {
+        userId: sub,
+        email: email ?? '',
+        accessToken: token,
+      }
+    } catch (jwksError) {
+      console.error('[auth] JWT verification failed:', (jwksError as Error).message)
+      return null
     }
   }
 
