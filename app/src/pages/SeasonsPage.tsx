@@ -1,12 +1,15 @@
 // Seasons Page — All seasons as big cards with progress
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSeasons } from '../hooks/useSeasons'
+import { useSeasons, useDeleteSeason } from '../hooks/useSeasons'
 import { Button } from '../components/ui'
 import { AppLayout } from '../components/layout'
 
 export default function SeasonsPage() {
   const navigate = useNavigate()
   const { data: seasons, isLoading } = useSeasons()
+  const deleteSeason = useDeleteSeason()
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const getSeasonProgress = (startDate: string, endDate: string) => {
     const start = new Date(startDate).getTime()
@@ -82,8 +85,49 @@ export default function SeasonsPage() {
                   key={season.id}
                   className="card"
                   onClick={() => navigate(`/seasons/${season.id}`)}
-                  style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}
+                  style={{ cursor: 'pointer', padding: 0, overflow: 'hidden', position: 'relative' }}
                 >
+                  {/* Delete Confirmation Overlay */}
+                  {confirmDeleteId === season.id && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        position: 'absolute', inset: 0, zIndex: 10,
+                        background: 'rgba(255,255,255,0.95)',
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', gap: 12,
+                        borderRadius: 'inherit',
+                      }}
+                    >
+                      <p className="text-sm font-medium">Delete "{season.name}"?</p>
+                      <p className="text-xs text-muted">This cannot be undone.</p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setConfirmDeleteId(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <button
+                          disabled={deleteSeason.isPending}
+                          onClick={async () => {
+                            await deleteSeason.mutateAsync(season.id)
+                            setConfirmDeleteId(null)
+                          }}
+                          style={{
+                            padding: '6px 16px', borderRadius: 8,
+                            border: '1px solid var(--color-critical)',
+                            background: 'var(--color-critical)', color: 'white',
+                            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                          }}
+                        >
+                          {deleteSeason.isPending ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Header */}
                   <div style={{
                     padding: 'var(--space-5) var(--space-6)',
@@ -104,9 +148,27 @@ export default function SeasonsPage() {
                         {new Date(season.startDate).toLocaleDateString()} — {new Date(season.endDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="text-2xl font-bold" style={{ color: 'var(--color-sage)' }}>{progress}%</div>
-                      <div className="text-xs text-muted">Week {week} of {season.durationWeeks}</div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className="text-2xl font-bold" style={{ color: 'var(--color-sage)' }}>{progress}%</div>
+                        <div className="text-xs text-muted">Week {week} of {season.durationWeeks}</div>
+                      </div>
+                      <button
+                        title="Delete season"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setConfirmDeleteId(season.id)
+                        }}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          padding: 4, fontSize: 16, color: 'var(--color-text-muted)',
+                          borderRadius: 4, lineHeight: 1,
+                        }}
+                        onMouseOver={(e) => (e.currentTarget.style.color = 'var(--color-critical)')}
+                        onMouseOut={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
 
