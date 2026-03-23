@@ -152,6 +152,15 @@ router.put('/timezone', async (req: Request, res: Response, next: NextFunction) 
         },
       })
     }
+    const validTimezones = Intl.supportedValuesOf('timeZone')
+    if (!validTimezones.includes(timezone)) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_TIMEZONE',
+          message: `Invalid IANA timezone: ${timezone}`,
+        },
+      })
+    }
     const user = await prisma.user.update({
       where: { id: userId },
       data: { timezone },
