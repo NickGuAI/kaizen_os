@@ -1,11 +1,7 @@
-// ZenOS Service Worker — cache-first for static assets, network-first for API
+// ZenOS Service Worker — network-first for navigations, cache-first for hashed assets
 const CACHE_NAME = 'zenos-v1'
-const STATIC_ASSETS = ['/', '/manifest.json']
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  )
+self.addEventListener('install', () => {
   self.skipWaiting()
 })
 
@@ -19,11 +15,33 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(fetch(event.request))
+  const { request } = event
+
+  // API calls: always network
+  if (request.url.includes('/api/')) {
+    event.respondWith(fetch(request))
     return
   }
+
+  // Navigation requests (HTML): network-first so deploys take effect immediately
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match(request))
+    )
+    return
+  }
+
+  // Hashed static assets (Vite output): cache-first
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(request).then((cached) => {
+      if (cached) return cached
+      return fetch(request).then((response) => {
+        if (response.ok && request.url.match(/\/assets\/.*\.[a-f0-9]+\./)) {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
+        }
+        return response
+      })
+    })
   )
 })

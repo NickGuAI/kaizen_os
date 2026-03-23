@@ -152,8 +152,9 @@ router.put('/timezone', async (req: Request, res: Response, next: NextFunction) 
         },
       })
     }
-    const validTimezones = Intl.supportedValuesOf('timeZone')
-    if (!validTimezones.includes(timezone)) {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: timezone })
+    } catch {
       return res.status(400).json({
         error: {
           code: 'INVALID_TIMEZONE',
