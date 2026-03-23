@@ -4,6 +4,7 @@ import { eventService } from '../../services/eventService'
 import { validateCreateSeason, formatValidationErrors } from '../../lib/validation'
 import { getSeasonReviewAvailability } from '../../utils/seasonReviewUtils'
 import { prisma } from '../../lib/db'
+import { buildSeasonAnalytics } from '../utils/seasonAnalytics'
 
 const router = Router()
 
@@ -286,44 +287,61 @@ router.get('/analytics', async (req: Request, res: Response, next: NextFunction)
     const seasons = await prisma.season.findMany({
       where: { userId },
       orderBy: { startDate: 'desc' },
-      include: {
-        cards: {
-          select: {
-            id: true,
-            unitType: true,
-            status: true,
-          },
+    })
+
+    if (seasons.length === 0) {
+      return res.json([])
+    }
+
+    const seasonIds = seasons.map(season => season.id)
+    const earliestStart = seasons.reduce(
+      (min, season) => (season.startDate < min ? season.startDate : min),
+      seasons[0]!.startDate
+    )
+    const latestEnd = seasons.reduce((max, season) => {
+      const end = new Date(season.startDate)
+      end.setDate(end.getDate() + season.durationWeeks * 7)
+      return end > max ? end : max
+    }, new Date(seasons[0]!.startDate))
+
+    const [cards, events] = await Promise.all([
+      prisma.card.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          unitType: true,
+          status: true,
+          seasonId: true,
+          createdAt: true,
+          startDate: true,
+          targetDate: true,
+          completionDate: true,
         },
-      },
-    })
+      }),
+      prisma.event.findMany({
+        where: {
+          userId,
+          cardId: { not: null },
+          OR: [
+            { occurredAt: { gte: earliestStart, lt: latestEnd } },
+            ...seasonIds.map((seasonId) => ({
+              payload: {
+                path: ['season_id'],
+                equals: seasonId,
+              },
+            })),
+          ],
+        },
+        select: {
+          cardId: true,
+          eventType: true,
+          occurredAt: true,
+          payload: true,
+        },
+      }),
+    ])
 
-    const analytics = seasons.map((season: { id: string; name: string; startDate: Date; durationWeeks: number; utilityRate: number; isActive: boolean; cards: { id: string; unitType: string; status: string }[] }) => {
-      const totalCards = season.cards.length
-      const completed = season.cards.filter((c: { status: string }) => c.status === 'completed').length
-      const inProgress = season.cards.filter((c: { status: string }) => c.status === 'in_progress').length
-      const completionRate = totalCards > 0 ? Math.round((completed / totalCards) * 100) : 0
-
-      const byType = {
-        ACTION_GATE: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_GATE').length,
-        ACTION_EXPERIMENT: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_EXPERIMENT').length,
-        ACTION_ROUTINE: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_ROUTINE').length,
-        ACTION_OPS: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_OPS').length,
-      }
-
-      return {
-        id: season.id,
-        name: season.name,
-        startDate: season.startDate,
-        durationWeeks: season.durationWeeks,
-        utilityRate: season.utilityRate,
-        isActive: season.isActive,
-        totalCards,
-        completed,
-        inProgress,
-        completionRate,
-        byType,
-      }
-    })
+    const analytics = buildSeasonAnalytics(seasons, cards, events)
 
     res.json(analytics)
   } catch (error) {
@@ -386,7 +404,11 @@ router.put('/:id/activate', async (req: Request, res: Response, next: NextFuncti
     await eventService.log({
       userId,
       eventType: 'season_started',
-      payload: { season_id: id, season_name: season.name },
+      payload: {
+        season_id: id,
+        season_name: season.name,
+        source: 'manual_activate',
+      },
     })
     
     res.json(season)
@@ -412,7 +434,11 @@ router.put('/:id/deactivate', async (req: Request, res: Response, next: NextFunc
     await eventService.log({
       userId,
       eventType: 'season_ended',
-      payload: { season_id: id, season_name: season.name },
+      payload: {
+        season_id: id,
+        season_name: season.name,
+        source: 'manual_deactivate',
+      },
     })
     
     res.json(season)

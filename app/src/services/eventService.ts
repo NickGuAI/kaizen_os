@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 import db from '../lib/db'
 import { randomUUID } from 'crypto'
+import { buildSeasonReviewSnapshot } from '../server/utils/seasonReviewSnapshot'
 
 const prisma = db
 
@@ -475,8 +476,52 @@ export class EventService {
     const submissionId = randomUUID()
 
     await prisma.$transaction(async (tx) => {
+      const season =
+        gradingType === 'end_season'
+          ? await tx.season.findFirst({
+              where: { id: seasonId, userId },
+              select: {
+                id: true,
+                name: true,
+                startDate: true,
+                durationWeeks: true,
+                utilityRate: true,
+                isActive: true,
+              },
+            })
+          : null
+
+      const reviewedCardsForSnapshot: Array<{
+        cardId: string
+        title: string
+        unitType: 'ACTION_GATE' | 'ACTION_EXPERIMENT' | 'ACTION_ROUTINE' | 'ACTION_OPS'
+        statusBefore: 'not_started' | 'in_progress' | 'completed' | 'backlog'
+        statusAfter: 'not_started' | 'in_progress' | 'completed' | 'backlog'
+        seasonId: string | null
+        startDate: Date | null
+        targetDate: Date | null
+        completionDateBefore: Date | null
+        completionDateAfter: Date | null
+        overallPassed: boolean
+        notes: string | null
+        markComplete: boolean
+        results: Array<{ criterion: string; passed: boolean }>
+      }> = []
+
       for (const grading of gradings) {
         const overallPassed = grading.results.every(r => r.passed)
+        const card = await tx.card.findFirst({
+          where: { id: grading.cardId, userId },
+          select: {
+            title: true,
+            unitType: true,
+            status: true,
+            seasonId: true,
+            startDate: true,
+            targetDate: true,
+            completionDate: true,
+          },
+        })
 
         // Log the grading event
         await tx.event.create({
@@ -498,19 +543,14 @@ export class EventService {
 
         // If markComplete is true, update card status and log completion event
         if (grading.markComplete) {
-          // Get the card to determine its type (with userId validation for security)
-          const card = await tx.card.findFirst({
-            where: { id: grading.cardId, userId },
-            select: { unitType: true },
-          })
-
           if (card) {
+            const completionDate = new Date()
             // Update card status to completed (with userId validation for security)
             await tx.card.updateMany({
               where: { id: grading.cardId, userId },
               data: {
                 status: 'completed',
-                completionDate: new Date(),
+                completionDate,
               },
             })
 
@@ -534,8 +574,66 @@ export class EventService {
               },
             })
             completedCount++
+
+            if (gradingType === 'end_season') {
+              reviewedCardsForSnapshot.push({
+                cardId: grading.cardId,
+                title: card.title,
+                unitType: card.unitType as 'ACTION_GATE' | 'ACTION_EXPERIMENT' | 'ACTION_ROUTINE' | 'ACTION_OPS',
+                statusBefore: card.status as 'not_started' | 'in_progress' | 'completed' | 'backlog',
+                statusAfter: 'completed',
+                seasonId: card.seasonId,
+                startDate: card.startDate,
+                targetDate: card.targetDate,
+                completionDateBefore: card.completionDate,
+                completionDateAfter: completionDate,
+                overallPassed,
+                notes: grading.notes || null,
+                markComplete: true,
+                results: grading.results,
+              })
+            }
           }
+        } else if (gradingType === 'end_season' && card) {
+          reviewedCardsForSnapshot.push({
+            cardId: grading.cardId,
+            title: card.title,
+            unitType: card.unitType as 'ACTION_GATE' | 'ACTION_EXPERIMENT' | 'ACTION_ROUTINE' | 'ACTION_OPS',
+            statusBefore: card.status as 'not_started' | 'in_progress' | 'completed' | 'backlog',
+            statusAfter: card.status as 'not_started' | 'in_progress' | 'completed' | 'backlog',
+            seasonId: card.seasonId,
+            startDate: card.startDate,
+            targetDate: card.targetDate,
+            completionDateBefore: card.completionDate,
+            completionDateAfter: card.completionDate,
+            overallPassed,
+            notes: grading.notes || null,
+            markComplete: false,
+            results: grading.results,
+          })
         }
+      }
+
+      if (gradingType === 'end_season' && season) {
+        const snapshot = buildSeasonReviewSnapshot({
+          submissionId,
+          season,
+          reviewedCards: reviewedCardsForSnapshot,
+        })
+
+        await tx.event.create({
+          data: {
+            userId,
+            eventType: 'season_ended',
+            payload: {
+              season_id: season.id,
+              season_name: season.name,
+              source: 'end_season_review',
+              submission_id: submissionId,
+              review_snapshot: snapshot,
+            },
+          },
+        })
       }
     })
 
