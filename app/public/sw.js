@@ -36,7 +36,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => {
       if (cached) return cached
       return fetch(request).then((response) => {
-        if (response.ok && request.url.match(/\/assets\/.*\.[a-f0-9]+\./)) {
+        if (response.ok && request.url.match(/\/assets\/.+-[A-Za-z0-9_-]+\./)) {
           const clone = response.clone()
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
         }

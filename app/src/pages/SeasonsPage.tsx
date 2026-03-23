@@ -153,22 +153,24 @@ export default function SeasonsPage() {
                         <div className="text-2xl font-bold" style={{ color: 'var(--color-sage)' }}>{progress}%</div>
                         <div className="text-xs text-muted">Week {week} of {season.durationWeeks}</div>
                       </div>
-                      <button
-                        title="Delete season"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setConfirmDeleteId(season.id)
-                        }}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          padding: 4, fontSize: 16, color: 'var(--color-text-muted)',
-                          borderRadius: 4, lineHeight: 1,
-                        }}
-                        onMouseOver={(e) => (e.currentTarget.style.color = 'var(--color-critical)')}
-                        onMouseOut={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
-                      >
-                        ✕
-                      </button>
+                      {!season.isActive && (
+                        <button
+                          title="Delete season"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setConfirmDeleteId(season.id)
+                          }}
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            padding: 4, fontSize: 16, color: 'var(--color-text-muted)',
+                            borderRadius: 4, lineHeight: 1,
+                          }}
+                          onMouseOver={(e) => (e.currentTarget.style.color = 'var(--color-critical)')}
+                          onMouseOut={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
                   </div>
 
