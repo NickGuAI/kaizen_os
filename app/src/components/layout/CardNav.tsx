@@ -51,7 +51,10 @@ function useNavItems(): CardNavItem[] {
         ? themes.map((t) => ({ label: t.title, path: `/theme/${t.id}` }))
         : [{ label: 'Themes overview', path: '/where-am-i' }]
 
-    const seasonLinks: CardNavLink[] = [{ label: 'All seasons', path: '/seasons' }]
+    const seasonLinks: CardNavLink[] = [
+      { label: 'All seasons', path: '/seasons' },
+      { label: 'Analytics', path: '/analytics' },
+    ]
     if (activeSeason) {
       seasonLinks.unshift({ label: activeSeason.name, path: `/seasons/${activeSeason.id}` })
     }

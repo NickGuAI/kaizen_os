@@ -12,6 +12,7 @@ import SeasonView from './pages/SeasonView'
 import ActionTableView from './pages/ActionTableView'
 import SeasonGradingPage from './pages/SeasonGradingPage'
 import ReviewPage from './pages/ReviewPage'
+import AnalyticsPage from './pages/AnalyticsPage'
 import ClassificationRulesPage from './pages/ClassificationRulesPage'
 import AgentChatPage from './pages/AgentChatPage'
 import LoginPage from './pages/LoginPage'
@@ -97,6 +98,7 @@ function App() {
           <Route path="/themes" element={<Navigate to="/planner" replace />} />
           <Route path="/themes-overview" element={<Navigate to="/where-am-i" replace />} />
           <Route path="/where-am-i" element={<WhereAmIPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/seasons" element={<SeasonsPage />} />
           <Route path="/seasons/:id" element={<SeasonView />} />
           <Route path="/seasons/:id/view" element={<SeasonView />} />

@@ -166,10 +166,19 @@ class ApiClient {
     })
   }
 
+  async deleteSeason(id: string) {
+    return this.request<void>(`/seasons/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
   async getSeasonGradings(seasonId: string) {
     return this.request<SeasonGradingsResponse>(`/seasons/${seasonId}/gradings`)
   }
 
+  async getSeasonAnalytics() {
+    return this.request<SeasonAnalytics[]>('/seasons/analytics')
+  }
 
   // Events
   async logEvent(data: LogEventInput) {
@@ -409,6 +418,25 @@ export interface Season {
   isActive: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface SeasonAnalytics {
+  id: string
+  name: string
+  startDate: string
+  durationWeeks: number
+  utilityRate: number
+  isActive: boolean
+  totalCards: number
+  completed: number
+  inProgress: number
+  completionRate: number
+  byType: {
+    ACTION_GATE: number
+    ACTION_EXPERIMENT: number
+    ACTION_ROUTINE: number
+    ACTION_OPS: number
+  }
 }
 
 export interface SeasonVeto {

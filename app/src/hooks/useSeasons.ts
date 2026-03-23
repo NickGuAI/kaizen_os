@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, CreateSeasonInput } from '../lib/api'
-import type { SeasonVeto } from '../lib/api'
+import type { SeasonVeto, SeasonAnalytics } from '../lib/api'
 
 export function useSeasons() {
   return useQuery({
@@ -70,6 +70,19 @@ export function useDeactivateSeason() {
   })
 }
 
+export function useDeleteSeason() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => api.deleteSeason(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seasons'] })
+      queryClient.invalidateQueries({ queryKey: ['activeSeason'] })
+      queryClient.invalidateQueries({ queryKey: ['activeSeasonVetoes'] })
+    },
+  })
+}
+
 export function useUpdateSeason() {
   const queryClient = useQueryClient()
 
@@ -82,6 +95,13 @@ export function useUpdateSeason() {
       queryClient.invalidateQueries({ queryKey: ['activeSeason'] })
       queryClient.invalidateQueries({ queryKey: ['activeSeasonVetoes'] })
     },
+  })
+}
+
+export function useSeasonAnalytics() {
+  return useQuery<SeasonAnalytics[]>({
+    queryKey: ['seasonAnalytics'],
+    queryFn: () => api.getSeasonAnalytics(),
   })
 }
 

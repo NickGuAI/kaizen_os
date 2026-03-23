@@ -8,6 +8,7 @@ const MENU_ITEMS = [
   { label: 'Chat', path: '/' },
   { label: 'Themes', path: '/where-am-i' },
   { label: 'Seasons', path: '/seasons' },
+  { label: 'Analytics', path: '/analytics' },
   { label: 'Review', path: '/review' },
   { label: 'Settings', path: '/settings' },
 ]

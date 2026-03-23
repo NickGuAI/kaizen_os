@@ -277,6 +277,60 @@ router.get('/active/vetoes', async (req: Request, res: Response, next: NextFunct
   }
 })
 
+// GET /api/seasons/analytics - Cross-season analytics
+router.get('/analytics', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = getUserId(req, res)
+    if (!userId) return
+
+    const seasons = await prisma.season.findMany({
+      where: { userId },
+      orderBy: { startDate: 'desc' },
+      include: {
+        cards: {
+          select: {
+            id: true,
+            unitType: true,
+            status: true,
+          },
+        },
+      },
+    })
+
+    const analytics = seasons.map((season: { id: string; name: string; startDate: Date; durationWeeks: number; utilityRate: number; isActive: boolean; cards: { id: string; unitType: string; status: string }[] }) => {
+      const totalCards = season.cards.length
+      const completed = season.cards.filter((c: { status: string }) => c.status === 'completed').length
+      const inProgress = season.cards.filter((c: { status: string }) => c.status === 'in_progress').length
+      const completionRate = totalCards > 0 ? Math.round((completed / totalCards) * 100) : 0
+
+      const byType = {
+        ACTION_GATE: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_GATE').length,
+        ACTION_EXPERIMENT: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_EXPERIMENT').length,
+        ACTION_ROUTINE: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_ROUTINE').length,
+        ACTION_OPS: season.cards.filter((c: { unitType: string }) => c.unitType === 'ACTION_OPS').length,
+      }
+
+      return {
+        id: season.id,
+        name: season.name,
+        startDate: season.startDate,
+        durationWeeks: season.durationWeeks,
+        utilityRate: season.utilityRate,
+        isActive: season.isActive,
+        totalCards,
+        completed,
+        inProgress,
+        completionRate,
+        byType,
+      }
+    })
+
+    res.json(analytics)
+  } catch (error) {
+    next(error)
+  }
+})
+
 // GET /api/seasons/:id - Get season by ID
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
