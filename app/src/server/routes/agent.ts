@@ -622,6 +622,10 @@ router.post('/rollback', async (req: Request, res) => {
       where: {
         userId,
         eventType: 'agent_mutation',
+        payload: {
+          path: ['agentSessionId'],
+          equals: sessionId,
+        },
       },
       orderBy: { occurredAt: 'desc' },
     })
@@ -631,7 +635,6 @@ router.post('/rollback', async (req: Request, res) => {
 
     for (const mutation of mutations) {
       const payload = mutation.payload as unknown as MutationPayload
-      if (payload.agentSessionId !== sessionId) continue
 
       if (checkpointUuid) {
         if (payload.checkpointUuid === checkpointUuid) {
