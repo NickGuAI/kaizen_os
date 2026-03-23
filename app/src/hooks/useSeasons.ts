@@ -79,6 +79,7 @@ export function useDeleteSeason() {
       queryClient.invalidateQueries({ queryKey: ['seasons'] })
       queryClient.invalidateQueries({ queryKey: ['activeSeason'] })
       queryClient.invalidateQueries({ queryKey: ['activeSeasonVetoes'] })
+      queryClient.invalidateQueries({ queryKey: ['seasonAnalytics'] })
     },
   })
 }
