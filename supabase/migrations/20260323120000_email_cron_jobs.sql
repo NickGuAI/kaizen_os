@@ -4,17 +4,16 @@
 -- runs hourly so every timezone window is covered; email_log deduplicates.
 --
 -- IMPORTANT: Before running `supabase db push`:
---   1. Replace <SUPABASE_FUNCTIONS_URL> with your project's Edge Functions URL
---      (e.g. https://<project-ref>.supabase.co/functions/v1)
---   2. Replace <CRON_SECRET> with the service role key
---   3. Revert both placeholders before committing
+--   Replace <CRON_SECRET> with the actual CRON_SECRET value
+--   (the Edge Functions check Authorization against env CRON_SECRET,
+--    NOT the service role key). Revert placeholder before committing.
 
 SELECT cron.schedule(
   'daily-summary-email',
   '0 * * * *',
   $$
   SELECT net.http_post(
-    url     => '<SUPABASE_FUNCTIONS_URL>/daily-summary-email',
+    url     => 'https://bcmfjyjkmyqvqiaztrje.supabase.co/functions/v1/daily-summary-email',
     headers => '{"Content-Type": "application/json", "Authorization": "Bearer <CRON_SECRET>"}'::jsonb,
     body    => '{}'::jsonb
   );
@@ -26,7 +25,7 @@ SELECT cron.schedule(
   '0 * * * *',
   $$
   SELECT net.http_post(
-    url     => '<SUPABASE_FUNCTIONS_URL>/weekly-review-reminder',
+    url     => 'https://bcmfjyjkmyqvqiaztrje.supabase.co/functions/v1/weekly-review-reminder',
     headers => '{"Content-Type": "application/json", "Authorization": "Bearer <CRON_SECRET>"}'::jsonb,
     body    => '{}'::jsonb
   );
