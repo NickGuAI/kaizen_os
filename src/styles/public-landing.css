@@ -293,6 +293,66 @@
   opacity: 0.85;
 }
 
+/* ── About / Features section ── */
+.public-landing__about {
+  position: relative;
+  z-index: 1;
+  max-width: 860px;
+  margin: 0 auto 3rem;
+  padding: 0 2rem;
+  text-align: center;
+}
+
+.public-landing__about-lead {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--landing-muted);
+  max-width: 640px;
+  margin: 0 auto 2.5rem;
+}
+
+.public-landing__features {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  text-align: left;
+}
+
+.public-landing__feature {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(139, 148, 103, 0.15);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+}
+
+.public-landing__feature-icon {
+  font-size: 1.4rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.public-landing__feature-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--landing-text);
+  margin: 0 0 0.4rem;
+}
+
+.public-landing__feature-desc {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--landing-muted);
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .public-landing__features {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── ── ── ── ── ── ── ── ── ── */
+
 .public-landing__footer-sep {
   display: inline-block;
   margin: 0 0.75rem;
