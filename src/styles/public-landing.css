@@ -1,0 +1,325 @@
+.public-landing {
+  --landing-sage: #8b9467;
+  --landing-ink: #1A1A1A;
+  --landing-muted: #666666;
+  --landing-panel: rgba(254, 254, 254, 0.85);
+  --landing-border: rgba(139, 148, 103, 0.25);
+  --landing-focus: #9da575;
+
+  position: relative;
+  min-height: 100vh;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: #F5F1EB;
+}
+
+.public-landing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/assets/zenos_backgound.png') center/cover no-repeat;
+  opacity: 1;
+  z-index: 0;
+}
+
+.public-landing__rays,
+.public-landing__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.public-landing__rays {
+  z-index: 1;
+  opacity: 1;
+}
+
+.public-landing__overlay {
+  z-index: 2;
+  background: none;
+}
+
+.public-landing__hero {
+  position: relative;
+  z-index: 3;
+  width: min(760px, 100%);
+  text-align: center;
+  color: var(--landing-ink);
+  background: var(--landing-panel);
+  border: none;
+  border-radius: 28px;
+  padding: clamp(2rem, 5vw, 3.4rem) clamp(1.2rem, 5vw, 3.4rem);
+  box-shadow: 0 24px 80px rgba(42, 42, 40, 0.08);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.public-landing__shape-blur {
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.public-landing__hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.public-landing__kicker {
+  margin: 0;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 1.5rem;
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.public-landing__headline {
+  margin: 1.15rem auto 1rem;
+  max-width: 18ch;
+  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: clamp(2rem, 5.5vw, 4.2rem);
+  line-height: 1.06;
+  letter-spacing: 0.015em;
+  text-wrap: balance;
+}
+
+.public-landing__subhead {
+  margin: 0 auto;
+  max-width: 45ch;
+  color: var(--landing-muted);
+  font-size: clamp(1rem, 2.1vw, 1.2rem);
+  line-height: 1.55;
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.public-landing__cta {
+  margin-top: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.86rem 1.7rem;
+  min-width: 11.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(139, 148, 103, 0.45);
+  background: linear-gradient(135deg, var(--landing-sage), #9da575);
+  color: #FFFFFF;
+  text-decoration: none;
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.public-landing__cta:hover {
+  transform: translateY(-2px);
+  border-color: rgba(157, 165, 117, 0.9);
+  background: linear-gradient(135deg, #9da575, #a8b07f);
+}
+
+.public-landing__cta:focus-visible {
+  outline: 2px solid var(--landing-focus);
+  outline-offset: 4px;
+}
+
+@media (max-width: 720px) {
+  .public-landing__hero {
+    border-radius: 20px;
+    padding: 1.8rem 1.1rem 2rem;
+  }
+
+  .public-landing__headline {
+    margin-top: 0.95rem;
+    max-width: 17ch;
+  }
+
+  .public-landing__subhead {
+    max-width: 32ch;
+  }
+
+  .public-landing__cta {
+    width: 100%;
+    max-width: 20rem;
+  }
+}
+
+/* ── Pricing comparison ── */
+
+.public-landing__pricing {
+  position: relative;
+  z-index: 3;
+  width: min(760px, 100%);
+  margin-top: 2rem;
+}
+
+.public-landing__pricing-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.9rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--landing-border);
+  background: var(--landing-panel);
+  backdrop-filter: blur(10px);
+  color: var(--landing-muted);
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.public-landing__pricing-toggle:hover {
+  border-color: rgba(139, 148, 103, 0.7);
+  color: var(--landing-ink);
+}
+
+.public-landing__pricing-toggle svg {
+  transition: transform 200ms ease;
+}
+
+.public-landing__pricing-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.public-landing__pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  animation: pricing-fade-in 300ms ease;
+}
+
+@keyframes pricing-fade-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.public-landing__plan {
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: 20px;
+  padding: 1.6rem 1.2rem;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+}
+
+.public-landing__plan--featured {
+  border-color: var(--landing-sage);
+  box-shadow: 0 0 24px rgba(139, 148, 103, 0.15);
+}
+
+.public-landing__plan-name {
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--landing-sage);
+  margin: 0 0 0.6rem;
+}
+
+.public-landing__plan-price {
+  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: 2rem;
+  color: var(--landing-ink);
+  margin: 0 0 1rem;
+  line-height: 1.1;
+}
+
+.public-landing__plan-price span {
+  font-size: 0.9rem;
+  color: var(--landing-muted);
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+}
+
+.public-landing__plan-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+
+.public-landing__plan-features li {
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: 0.85rem;
+  color: var(--landing-muted);
+  padding: 0.35rem 0;
+  padding-left: 1.2rem;
+  position: relative;
+  line-height: 1.4;
+}
+
+.public-landing__plan-features li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--landing-sage);
+  opacity: 0.7;
+}
+
+/* ── Footer ── */
+
+.public-landing__footer {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  padding: 1.5rem 0 0.5rem;
+  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: 0.78rem;
+}
+
+.public-landing__footer a {
+  color: var(--landing-muted);
+  opacity: 0.5;
+  text-decoration: none;
+  transition: opacity 160ms ease;
+}
+
+.public-landing__footer a:hover {
+  opacity: 0.85;
+}
+
+.public-landing__footer-sep {
+  display: inline-block;
+  margin: 0 0.75rem;
+  color: var(--landing-muted);
+  opacity: 0.25;
+}
+
+@media (max-width: 720px) {
+  .public-landing__pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-landing__plan {
+    border-radius: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-landing__cta {
+    transition: none;
+  }
+
+  .public-landing__cta:hover {
+    transform: none;
+  }
+
+  .public-landing__pricing-grid {
+    animation: none;
+  }
+}

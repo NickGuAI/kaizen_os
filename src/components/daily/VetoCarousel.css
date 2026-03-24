@@ -1,0 +1,104 @@
+/* VetoCarousel — exact ReactBits Carousel visual style */
+
+/* outer: matches daily-plan-section card style */
+.veto-carousel-outer {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  background: #FAF8F5;
+  border: 1px solid rgba(139, 148, 103, 0.12);
+}
+
+/* track: flex cursor-grab */
+.veto-carousel-track {
+  display: flex;
+  cursor: grab;
+}
+
+.veto-carousel-track:active {
+  cursor: grabbing;
+}
+
+/* card: bg-[#222] border border-[#222] rounded-[12px] flex flex-col items-start justify-between shrink-0 overflow-hidden */
+.veto-carousel-card {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  overflow: hidden;
+  cursor: grab;
+  background: transparent;
+  border-radius: 0;
+  min-height: 120px;
+  box-sizing: border-box;
+}
+
+.veto-carousel-card:active {
+  cursor: grabbing;
+}
+
+/* section header — matches daily-plan-section-header style */
+.veto-carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 0;
+  margin-bottom: 10px;
+}
+
+/* body: compact padding to match daily-plan-section cards */
+.veto-card-body {
+  padding: 0 16px 8px;
+}
+
+/* title: matches top3-priority-item visual weight */
+.veto-card-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1C1C1C;
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+/* desc: compact helper text */
+.veto-card-desc {
+  font-size: 12px;
+  color: #8B8B8B;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* dots row: compact, same visual weight as section separators */
+.veto-carousel-dots-row {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding-bottom: 12px;
+}
+
+.veto-carousel-dots {
+  margin-top: 10px;
+  display: flex;
+  width: 150px;
+  justify-content: space-between;
+  padding: 0 32px;
+  box-sizing: border-box;
+}
+
+/* dot: h-2 w-2 rounded-full — inactive: bg-[rgba(51,51,51,0.4)] */
+.veto-carousel-dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  background: rgba(51, 51, 51, 0.4);
+  transition: background-color 0.15s;
+}
+
+/* active dot: bg-[#333333] */
+.veto-carousel-dot.active {
+  background: #333333;
+}
