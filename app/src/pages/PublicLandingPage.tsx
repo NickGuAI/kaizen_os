@@ -86,6 +86,48 @@ export default function PublicLandingPage() {
         </div>
       </section>
 
+      <section className="public-landing__about" aria-label="About ZenOS">
+        <p className="public-landing__about-lead">
+          ZenOS is a personal productivity system for deliberate living. It connects your calendar,
+          tasks, and goals into a single weekly practice — so you spend less time managing and more
+          time making progress on what actually matters.
+        </p>
+        <div className="public-landing__features">
+          <div className="public-landing__feature">
+            <span className="public-landing__feature-icon" aria-hidden="true">📅</span>
+            <h2 className="public-landing__feature-title">Seasonal Planning</h2>
+            <p className="public-landing__feature-desc">
+              Define multi-week seasons with themes and goals. Track weekly progress and
+              budget your energy across what matters most.
+            </p>
+          </div>
+          <div className="public-landing__feature">
+            <span className="public-landing__feature-icon" aria-hidden="true">🗓</span>
+            <h2 className="public-landing__feature-title">Calendar Integration</h2>
+            <p className="public-landing__feature-desc">
+              Connect Google Calendar to plan your week visually. See tasks alongside
+              your events in one unified daily view.
+            </p>
+          </div>
+          <div className="public-landing__feature">
+            <span className="public-landing__feature-icon" aria-hidden="true">🤖</span>
+            <h2 className="public-landing__feature-title">AI Planning Assistant</h2>
+            <p className="public-landing__feature-desc">
+              Chat with an AI coach to plan your week, review your season, and reflect on
+              daily progress — grounded in your actual data.
+            </p>
+          </div>
+          <div className="public-landing__feature">
+            <span className="public-landing__feature-icon" aria-hidden="true">📊</span>
+            <h2 className="public-landing__feature-title">Progress Analytics</h2>
+            <p className="public-landing__feature-desc">
+              Review completion rates and momentum across seasons to understand your
+              patterns and continuously improve.
+            </p>
+          </div>
+        </div>
+      </section>
+
       <div className="public-landing__pricing">
         <button
           className="public-landing__pricing-toggle"
