@@ -3,7 +3,7 @@
 
 # Configuration
 APP_DIR := app
-RELEASE_REPO ?= https://github.com/NickGuAI/kaizen_os.git
+RELEASE_REPO ?= https://github.com/nickguyai/gehirn-kaizen-os-release.git
 RELEASE_PROD_REPO := https://github.com/nickguyai/gehirn-kaizen-os-release.git
 RELEASE_BRANCH := main
 
@@ -65,23 +65,14 @@ clean:
 RELEASE_TMP := release-tmp
 
 release-init:
-	@if [ -z "$(RELEASE_REPO)" ] || [ "$(RELEASE_REPO)" = "git@github.com:YOUR_ORG/kaizen-os-release.git" ]; then \
-		echo "Error: Set RELEASE_REPO first"; \
-		echo "  make release-init RELEASE_REPO=git@github.com:yourorg/kaizen-release.git"; \
-		exit 1; \
-	fi
-	@echo "Initializing release repo: $(RELEASE_REPO)"
-	rm -rf $(RELEASE_TMP)
-	mkdir -p $(RELEASE_TMP)
-	cd $(RELEASE_TMP) && git init
-	cd $(RELEASE_TMP) && git remote add origin $(RELEASE_REPO)
-	@echo "Release repo initialized at $(RELEASE_TMP)/"
-	@echo "Run 'make release' to push"
+	@echo "release-init is no longer needed — 'make release' clones automatically on first run."
 
 release: build
 	@if [ ! -d "$(RELEASE_TMP)/.git" ]; then \
-		echo "Error: Run 'make release-init' first"; \
-		exit 1; \
+		echo "Cloning release repo for the first time..."; \
+		git clone $(RELEASE_REPO) $(RELEASE_TMP); \
+	else \
+		cd $(RELEASE_TMP) && git pull --ff-only origin $(RELEASE_BRANCH); \
 	fi
 	@echo "Preparing release..."
 	rsync -av --delete \
@@ -96,7 +87,7 @@ release: build
 		$(APP_DIR)/ $(RELEASE_TMP)/
 	cd $(RELEASE_TMP) && git add -A
 	cd $(RELEASE_TMP) && git commit -m "Release $$(date +%Y%m%d-%H%M%S)" || true
-	cd $(RELEASE_TMP) && git push -u origin $(RELEASE_BRANCH) --force
+	cd $(RELEASE_TMP) && git push origin $(RELEASE_BRANCH)
 	@echo ""
 	@echo "✅ Released to $(RELEASE_REPO)"
 
@@ -105,10 +96,10 @@ RELEASE_PROD_TMP := release-prod-tmp
 
 release-prod: build
 	@if [ ! -d "$(RELEASE_PROD_TMP)/.git" ]; then \
-		echo "Initializing prod release repo..."; \
-		rm -rf $(RELEASE_PROD_TMP); \
-		mkdir -p $(RELEASE_PROD_TMP); \
-		cd $(RELEASE_PROD_TMP) && git init && git remote add origin $(RELEASE_PROD_REPO); \
+		echo "Cloning prod release repo for the first time..."; \
+		git clone $(RELEASE_PROD_REPO) $(RELEASE_PROD_TMP); \
+	else \
+		cd $(RELEASE_PROD_TMP) && git pull --ff-only origin $(RELEASE_BRANCH); \
 	fi
 	@echo "Preparing production release..."
 	rsync -av --delete \
@@ -123,6 +114,6 @@ release-prod: build
 		$(APP_DIR)/ $(RELEASE_PROD_TMP)/
 	cd $(RELEASE_PROD_TMP) && git add -A
 	cd $(RELEASE_PROD_TMP) && git commit -m "Release $$(date +%Y%m%d-%H%M%S)" || true
-	cd $(RELEASE_PROD_TMP) && git push -u origin $(RELEASE_BRANCH) --force
+	cd $(RELEASE_PROD_TMP) && git push origin $(RELEASE_BRANCH)
 	@echo ""
 	@echo "✅ Production released to $(RELEASE_PROD_REPO)"
