@@ -3,19 +3,16 @@
 
 # Configuration
 APP_DIR := app
-RELEASE_REPO ?= https://github.com/nickguyai/gehirn-kaizen-os-release.git
 RELEASE_PROD_REPO := https://github.com/nickguyai/gehirn-kaizen-os-release.git
 RELEASE_BRANCH := main
 
-.PHONY: help install dev build test lint check clean release-init release release-prod
+.PHONY: help install dev build test lint check clean release-prod
 
 help:
 	@echo "Kaizen OS Commands:"
 	@echo "  dev          - Run development (frontend + server)"
 	@echo "  build        - Build for production"
 	@echo "  test         - Run tests"
-	@echo "  release-init - Initialize release repo (one-time)"
-	@echo "  release      - Build and push to staging (NickGuAI/kaizen_os)"
 	@echo "  release-prod - Build and push to production (nickguyai/gehirn-kaizen-os-release)"
 
 # Development
@@ -28,6 +25,7 @@ dev:
 # Build
 build:
 	cd $(APP_DIR) && npm run build
+
 	@echo "Build complete: $(APP_DIR)/dist/"
 
 # Quality
@@ -61,35 +59,6 @@ clean:
 # =============================================================================
 # This pushes the app directory to a separate release repository
 # Railway/Vercel connects to the release repo for auto-deploy
-
-RELEASE_TMP := release-tmp
-
-release-init:
-	@echo "release-init is no longer needed — 'make release' clones automatically on first run."
-
-release: build
-	@if [ ! -d "$(RELEASE_TMP)/.git" ]; then \
-		echo "Cloning release repo for the first time..."; \
-		git clone $(RELEASE_REPO) $(RELEASE_TMP); \
-	else \
-		cd $(RELEASE_TMP) && git pull --ff-only origin $(RELEASE_BRANCH); \
-	fi
-	@echo "Preparing release..."
-	rsync -av --delete \
-		--exclude '.git' \
-		--exclude 'node_modules' \
-		--exclude '.env*' \
-		--exclude '.secrets/' \
-		--exclude '/data/' \
-		--exclude 'prisma/dev.db' \
-		--exclude '*.log' \
-		--exclude 'repomix-output.xml' \
-		$(APP_DIR)/ $(RELEASE_TMP)/
-	cd $(RELEASE_TMP) && git add -A
-	cd $(RELEASE_TMP) && git commit -m "Release $$(date +%Y%m%d-%H%M%S)" || true
-	cd $(RELEASE_TMP) && git push origin $(RELEASE_BRANCH)
-	@echo ""
-	@echo "✅ Released to $(RELEASE_REPO)"
 
 # Production release — pushes to gehirn-kaizen-os-release
 RELEASE_PROD_TMP := release-prod-tmp
