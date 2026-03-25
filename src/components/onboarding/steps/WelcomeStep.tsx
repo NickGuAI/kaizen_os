@@ -75,7 +75,7 @@ export function WelcomeStep({ onNext }: Props) {
           letterSpacing: '-0.02em',
         }}
       >
-        Welcome to Kaizen OS
+        Welcome to ZenOS
       </h1>
 
       <p

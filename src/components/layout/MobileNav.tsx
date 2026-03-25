@@ -49,8 +49,8 @@ export function MobileNav() {
   return (
     <header className="mobile-nav" ref={menuRef}>
       <div className="mobile-nav-header">
-        <span className="mobile-nav-icon">K</span>
-        <span className="mobile-nav-text">Kaizen OS</span>
+        <img src="/assets/zenos_logo.png" alt="ZenOS" style={{ width: 24, height: 24, borderRadius: 4 }} />
+        <span className="mobile-nav-text">ZenOS</span>
         <button
           className="mobile-nav-toggle"
           onClick={() => setMenuOpen(!menuOpen)}

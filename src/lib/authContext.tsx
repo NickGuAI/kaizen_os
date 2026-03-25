@@ -179,10 +179,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Supabase OAuth is not configured')
     }
 
+    // In the native macOS app, use kaizenos:// so the app receives the callback.
+    // The code_verifier stays in the WebView's sessionStorage; we must NOT reload
+    // before exchangeCodeForSession or PKCE will fail.
+    const redirectTo =
+      (typeof window !== 'undefined' && (window as Window & { __KAIZEN_NATIVE_APP?: boolean }).__KAIZEN_NATIVE_APP)
+        ? 'kaizenos://auth/callback'
+        : `${window.location.origin}/auth/callback`
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo,
         scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/tasks',
         queryParams: {
           access_type: 'offline',

@@ -235,8 +235,8 @@ export function CardNav({ variant = 'light', className = '' }: CardNavProps) {
           </div>
 
           <div className="cardnav-logo" onClick={() => navigate('/planner')} role="button" tabIndex={0}>
-            <span className="cardnav-logo-mark">K</span>
-            <span className="cardnav-logo-text">Kaizen OS</span>
+            <img src="/assets/zenos_logo.png" alt="ZenOS" style={{ width: 28, height: 28, borderRadius: 6 }} />
+            <span className="cardnav-logo-text">ZenOS</span>
           </div>
 
           <button

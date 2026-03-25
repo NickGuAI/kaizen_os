@@ -140,8 +140,11 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   // Workitem integration - disabled by default
   agentWorkitemProvider: 'none',
   agentWorkitemTools: [],
-  // Calendar tools - disabled by default (all tools must be explicitly enabled)
-  agentCalendarTools: [],
+  // Calendar tools - write tools enabled by default; delete requires explicit opt-in
+  agentCalendarTools: [
+    'mcp__calendar__create_calendar_event',
+    'mcp__calendar__update_calendar_event',
+  ],
   agentCalendarDeleteEnabled: false,
   agentCalendarDeleteAcknowledged: false,
   // Email notifications - enabled by default

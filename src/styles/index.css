@@ -3454,7 +3454,7 @@ body {
   }
 }
 
-/* ==================== LOGIN PAGE — Sumi-e ==================== */
+/* ==================== LOGIN PAGE — Sumi-e (light, matching landing) ==================== */
 .login-page {
   position: relative;
   min-height: 100vh;
@@ -3462,10 +3462,17 @@ body {
   align-items: center;
   justify-content: center;
   padding: clamp(1.5rem, 4vw, 3rem);
-  background:
-    radial-gradient(circle at 30% 20%, rgba(139, 148, 103, 0.12), transparent 50%),
-    radial-gradient(circle at 70% 80%, rgba(139, 148, 103, 0.08), transparent 40%),
-    linear-gradient(160deg, #0a0f0a 0%, #0d120d 60%, #0f1510 100%);
+  background-color: #F5F1EB;
+  overflow: hidden;
+}
+
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/assets/zenos_backgound.png') center/cover no-repeat;
+  opacity: 1;
+  z-index: 0;
 }
 
 .login-card {
@@ -3473,11 +3480,11 @@ body {
   z-index: 2;
   width: min(420px, 100%);
   padding: clamp(2rem, 5vw, 2.8rem);
-  background: rgba(16, 23, 16, 0.65);
+  background: rgba(254, 254, 254, 0.85);
   border: 1px solid rgba(139, 148, 103, 0.25);
-  border-radius: 20px;
+  border-radius: 24px;
   backdrop-filter: blur(12px);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 24px 80px rgba(42, 42, 40, 0.08);
   text-align: center;
 }
 
@@ -3493,7 +3500,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .login-title {
@@ -3501,14 +3508,14 @@ body {
   font-family: var(--font-serif);
   font-size: clamp(1.6rem, 3.5vw, 2rem);
   font-weight: 500;
-  color: #F5F1EB;
+  color: var(--ink-deep);
   letter-spacing: 0.01em;
 }
 
 .login-subtitle {
   margin: 0.4rem 0 1.6rem;
   font-size: 0.9rem;
-  color: rgba(245, 241, 235, 0.55);
+  color: var(--ink-light);
 }
 
 .login-form {
@@ -3521,22 +3528,24 @@ body {
 .login-google-btn {
   padding: 11px;
   border-radius: 10px;
-  background: rgba(245, 241, 235, 0.92);
-  color: #1A1A1A;
+  background: linear-gradient(135deg, var(--color-sage), #9da575);
+  color: #FFFFFF;
   font-weight: 600;
   font-size: 14px;
-  border: none;
+  border: 1px solid rgba(139, 148, 103, 0.4);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: transform 0.12s ease, background 0.15s ease;
 }
 
 .login-google-btn:hover {
-  background: #F5F1EB;
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #9da575, #a8b07f);
 }
 
 .login-google-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .login-divider {
@@ -3553,7 +3562,7 @@ body {
 
 .login-divider-text {
   font-size: 12px;
-  color: rgba(245, 241, 235, 0.35);
+  color: var(--ink-light);
 }
 
 .login-field {
@@ -3565,7 +3574,7 @@ body {
 .login-label {
   font-size: 12px;
   font-weight: 500;
-  color: rgba(245, 241, 235, 0.5);
+  color: var(--ink-light);
   letter-spacing: 0.03em;
 }
 
@@ -3573,8 +3582,8 @@ body {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid rgba(139, 148, 103, 0.2);
-  background: rgba(10, 15, 10, 0.5);
-  color: #F5F1EB;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--ink-deep);
   font-size: 14px;
   transition: border-color 0.15s ease;
 }
@@ -3586,14 +3595,14 @@ body {
 
 .login-error {
   font-size: 12px;
-  color: #e8756a;
+  color: #c0392b;
 }
 
 .login-submit-btn {
   padding: 11px;
   border-radius: 10px;
   background: linear-gradient(135deg, var(--color-sage), #9da575);
-  color: #F5F1EB;
+  color: #FFFFFF;
   font-weight: 600;
   font-size: 14px;
   border: 1px solid rgba(139, 148, 103, 0.4);
@@ -3610,4 +3619,80 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+/* ==================== LOADING PAGE — Sumi-e ==================== */
+.zenos-loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #F5F1EB;
+  z-index: 9999;
+}
+
+.zenos-loading__logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  margin-bottom: 2.4rem;
+  animation: loading-breathe 2.4s ease-in-out infinite;
+}
+
+.zenos-loading__quote {
+  text-align: center;
+  max-width: 28ch;
+  margin: 0 auto;
+}
+
+.zenos-loading__quote-jp {
+  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  font-weight: 400;
+  color: var(--ink-deep);
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.8rem;
+}
+
+.zenos-loading__quote-en {
+  font-size: 0.88rem;
+  color: var(--ink-light);
+  font-style: italic;
+  line-height: 1.5;
+  margin: 0 0 2rem;
+}
+
+.zenos-loading__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.zenos-loading__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-sage);
+  opacity: 0.3;
+  animation: loading-dot 1.2s ease-in-out infinite;
+}
+
+.zenos-loading__dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.zenos-loading__dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes loading-breathe {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(0.96); }
+}
+
+@keyframes loading-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(1); }
+  30% { opacity: 1; transform: scale(1.3); }
 }
