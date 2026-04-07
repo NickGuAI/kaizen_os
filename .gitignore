@@ -21,6 +21,10 @@ node_modules/
 # Build outputs
 dist/
 
+# Local release sandboxes
+release-prod-tmp/
+release-tmp/
+
 # legion-smash local artifacts
 .legion-smash-artifacts/
 
