@@ -1,6 +1,6 @@
-# Kaizen OS
+# ZenOS
 
-Personal productivity system with themes, actions, and calendar integration.
+Proactive personal coach for enterprise professionals — synthesizes work signals, checks in proactively, elevates performance and wellbeing.
 
 ## Tech Stack
 

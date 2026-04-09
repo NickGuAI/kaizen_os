@@ -13,7 +13,7 @@ const SCOPE_OPTIONS: Array<{ value: ApiKeyScope; label: string; variant: 'defaul
 ]
 
 const SERVER_OPTIONS: Array<{ value: ApiServer; label: string }> = [
-  { value: 'kaizen-db', label: 'kaizen-db' },
+  { value: 'kaizen-db', label: 'zen-db' },
   { value: 'workitems', label: 'workitems' },
   { value: 'calendar', label: 'calendar' },
 ]

@@ -123,7 +123,7 @@ export function Sidebar({
           <span className="sidebar-logo-icon">K</span>
           {!collapsed && (
             <>
-              <span className="sidebar-logo-text">Kaizen OS</span>
+              <span className="sidebar-logo-text">ZenOS</span>
               <span className={`sidebar-logo-burger ${menuOpen ? 'open' : ''}`}>☰</span>
             </>
           )}

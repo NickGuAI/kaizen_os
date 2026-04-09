@@ -37,7 +37,7 @@ export function MobileNav() {
     <header className="mobile-nav" ref={menuRef}>
       <div className="mobile-nav-header">
         <span className="mobile-nav-icon">K</span>
-        <span className="mobile-nav-text">Kaizen OS</span>
+        <span className="mobile-nav-text">ZenOS</span>
         <button
           className="mobile-nav-toggle"
           onClick={() => setMenuOpen(!menuOpen)}

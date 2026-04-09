@@ -1,4 +1,4 @@
-# KaizenOS Project Overview
+# ZenOS Project Overview
 
 For Google Cloud App Verification and Go-to-Market
 
@@ -6,63 +6,106 @@ For Google Cloud App Verification and Go-to-Market
 
 ## One-Line Description
 
-KaizenOS is a personal productivity system that integrates goal planning, calendar management, and AI assistance to help knowledge workers organize and execute meaningful work.
+ZenOS is a proactive, deployable personal coach for enterprise professionals — synthesizing work signals into insight and reaching out before you know you need it.
 
 ---
 
 ## Short Description (150 words)
 
-KaizenOS helps knowledge workers achieve their goals through structured planning and intelligent calendar integration. Users define long-term goals ("themes"), break them into actionable initiatives (experiments, routines, operations), and connect their Google Calendar to plan and track progress.
+ZenOS helps enterprise professionals improve mental health, elevate performance, and reduce burnout by acting as a proactive personal coach that synthesizes their real work signals.
 
-The app provides weekly planning workflows, daily focus lists, and time attribution tracking—helping users understand where their time goes and whether it aligns with their priorities. An AI assistant powered by Claude helps users organize work, create tasks, and make planning decisions.
+Unlike reactive tools that wait to be asked, ZenOS runs continuously — reading email, calendar, Notion, messages, and code sessions — and checks in proactively with questions, observations, and hard truths. It listens across data sources, synthesizes patterns, and surfaces what professionals need to hear, not just what they asked for.
 
-KaizenOS integrates with Google Calendar for event management and Google Tasks for task synchronization, providing a unified view of commitments and priorities.
+ZenOS is available in two tiers: Sensei (self-hosted, full data privacy, bring-your-own-key) and ZenOS Cloud (enterprise-managed, compliance-ready, per-seat pricing for teams).
+
+Integrates with Google Calendar, Google Tasks, Notion, and email. AI model is user-configurable.
 
 ---
 
 ## Long Description (For App Listing)
 
-### What is KaizenOS?
+### What is ZenOS?
 
-KaizenOS is a personal productivity platform built on the philosophy of continuous improvement ("kaizen"). It bridges the gap between high-level goal setting and day-to-day execution by connecting your aspirations to your calendar.
+ZenOS is a proactive personal coach for enterprise professionals. It runs continuously in the background, synthesizing signals from your real work — email, calendar, messages, Notion, code sessions, daily reviews — and proactively checks in to surface insights, ask the hard questions, and help you grow.
+
+ZenOS does not wait to be asked. It watches, listens, and reaches out. It provokes reflection rather than delivering monologues. It meets you where you are.
 
 ### Key Features
 
-- **Theme-Based Goal Setting**: Organize your work around meaningful long-term themes (career growth, health, relationships, etc.)
-- **Action Framework**: Four types of work items—Gates (milestones), Experiments (exploratory work), Routines (habits), and Operations (maintenance tasks)
-- **Calendar Integration**: Connect Google Calendar to view, plan, and attribute time to your goals
-- **Task Synchronization**: Connect Google Tasks to manage actionable items alongside calendar events
-- **Weekly Planning**: Guided review workflows to classify events, grade progress, and plan ahead
-- **Daily Focus**: Top 3 priorities per day with intention tagging (want/neutral/avoid)
-- **AI Assistant**: Chat with an AI to help create, organize, and manage your work items
-- **Time Attribution**: Understand where your time goes and how it maps to your goals
+- **Proactive Check-Ins**: ZenOS initiates conversations based on what it sees in your data — not when you open the app
+- **Signal Synthesis**: Reads across email, calendar, Notion, messages, and code sessions to build a full picture of your week
+- **Mental Health + Performance**: Tracks stress signals, energy patterns, and workload drift — catches burnout before it lands
+- **Two Deployment Tiers**: Self-hosted Sensei (full privacy) or ZenOS Cloud (enterprise-managed)
+- **Configurable AI Model**: Bring your own API key and choose your model
+- **Hard Questions**: Surfaces uncomfortable patterns — the week you said "deep work" but took 14 meetings
+- **Goal Tracking**: Connects themes, seasons, and actions to track growth trajectories over time
+- **Enterprise Value**: Deployed per-seat to give every team member a proactive coach
 
 ### Who It's For
 
-KaizenOS is designed for knowledge workers, entrepreneurs, freelancers, and anyone who wants more intentionality in how they spend their time. If you use Google Calendar and want to connect your daily activities to bigger goals, KaizenOS provides the framework.
+ZenOS is designed for high-performing professionals who want more than productivity — they want growth. It's ideal for:
+
+- Enterprise employees who need a proactive coach as a benefit
+- Entrepreneurs and knowledge workers managing multiple domains of life and work
+- Teams where burnout, churn, and disengagement are real costs
+- Organizations investing in the development of their people
 
 ---
 
 ## Target Audience
 
-- Knowledge workers managing multiple projects
-- Entrepreneurs and freelancers tracking billable time
-- Productivity enthusiasts who want goal-connected planning
-- Remote workers needing structure and accountability
+- Enterprise professionals (IC to director level)
+- High-performers who want sustainable growth, not just output
+- Organizations seeking to reduce burnout, churn, and disengagement
+- Individuals who want a privacy-respecting self-hosted coach
 
 ---
 
 ## Brand Positioning
 
-### Tagline Options
-
-1. "Plan with purpose. Execute with clarity."
-2. "Where goals meet your calendar."
-3. "Continuous improvement, one day at a time."
+### Tagline
+*Listen. Synthesize. Elevate.*
 
 ### Core Value Proposition
 
-Most productivity tools focus on tasks OR calendars OR goals. KaizenOS connects all three—so you're not just busy, you're making progress on what matters.
+Enterprise professionals generate enormous amounts of data about their own lives — email threads, calendar patterns, Notion notes, Slack messages, code commits — but no one synthesizes it into insight. ZenOS does. It runs continuously, learns your patterns, and proactively surfaces what you need to hear. The result: better mental health, sharper performance, and a career trajectory that compounds.
+
+### Enterprise Value Proposition
+
+Organizations lose their best people to burnout, disengagement, and lack of growth. ZenOS is the proactive coach deployed to each individual — synthesizing their work signals, asking the right questions, and building the self-awareness that separates high performers from great ones.
+
+---
+
+## Deployment Tiers
+
+### Self-Hosted (Sensei)
+- Runs on the individual's own machine
+- Lightweight, always-on, proactively checks in
+- Full data privacy — nothing leaves the device
+- Configurable model (bring your own API key)
+- Lower cost — ideal for individual professionals
+
+### Managed (ZenOS Cloud)
+- Hosted by Pioneering Minds
+- Enterprise-grade security and compliance
+- Managed data sources, integrations, and updates
+- Premium support
+- Per-seat pricing for teams
+
+---
+
+## Data Sources Synthesized by ZenOS
+
+| Source | What ZenOS Reads |
+|--------|-----------------|
+| Email | Threads, response patterns, urgency signals |
+| Google Calendar | Events, meeting load, time allocation |
+| Notion | Notes, projects, knowledge base |
+| Messages | Slack, iMessage — communication patterns |
+| Code/Work sessions | Session duration, focus depth, output |
+| Daily review + briefings | Reflections, energy, priorities |
+
+Model is user-configurable.
 
 ---
 
@@ -72,17 +115,17 @@ Most productivity tools focus on tasks OR calendars OR goals. KaizenOS connects 
 
 | Scope | Purpose | User Benefit |
 |-------|---------|--------------|
-| `calendar.events` | Read/write calendar events | Users can view their schedule, create new events, and link calendar blocks to their goals |
-| `calendar.calendarlist.readonly` | List available calendars | Users can select which calendars to sync (work, personal, etc.) |
-| `userinfo.email` | Identify user account | Associate the correct Google account with their KaizenOS profile |
-| `tasks` | Read/write Google Tasks | Users can manage tasks alongside calendar events in a unified interface |
+| `calendar.events` | Read/write calendar events | ZenOS synthesizes calendar data for coaching insights and proactive check-ins |
+| `calendar.calendarlist.readonly` | List available calendars | Users select which calendars to sync |
+| `userinfo.email` | Identify user account | Associates the correct Google account with the ZenOS profile |
+| `tasks` | Read/write Google Tasks | Manages tasks alongside calendar events for full work-signal synthesis |
 
 ### Data Handling
 
 - OAuth tokens are encrypted and stored securely in Supabase
-- Calendar events are cached locally for performance; users can disconnect at any time
-- No calendar data is shared with third parties
-- Users have full control over which calendars are synced
+- Calendar and task data are used exclusively for coaching synthesis; not shared with third parties
+- Self-hosted tier (Sensei): all data remains on-device
+- Users can disconnect integrations at any time
 
 ---
 
@@ -103,48 +146,7 @@ Most productivity tools focus on tasks OR calendars OR goals. KaizenOS connects 
 - Google Calendar API (v3)
 - Google Tasks API (v1)
 - Google OAuth 2.0
-- Anthropic Claude (AI assistant)
+- Anthropic Claude (AI coach engine)
+- Notion API
 - Stripe (billing)
 - PostHog (analytics)
-
----
-
-## Core Features Detail
-
-### 1. Theme-Based Goal Setting
-Users organize work around long-term "themes" (objectives). Each theme has:
-- Description and purpose
-- Color coding for visual organization
-- Season allocations (time-boxed planning periods)
-
-### 2. Action Framework
-Four types of actionable items:
-- **Gates**: Decision points and milestones
-- **Experiments**: Exploratory work with hypotheses to test
-- **Routines**: Recurring habits and processes
-- **Operations**: Maintenance and operational tasks
-
-### 3. Calendar Integration
-- OAuth connection to Google Calendar
-- Event viewing and creation
-- Event classification and annotation
-- Automatic event-to-action linking
-- Routine linking for recurring events
-
-### 4. Task Management
-- Google Tasks integration (full read/write)
-- Task lists and individual task management
-- Daily playlist/focus system (top 3 priorities)
-- Task attribution tracking
-
-### 5. Planning & Review
-- Weekly planning sessions with state persistence
-- Event review and reclassification workflow
-- Time tracking and logging
-- Season grading/retrospectives
-
-### 6. AI Assistant
-- Multi-turn conversations using Claude
-- Context-aware access to user data
-- Card/season CRUD operations
-- Mutation rollback capability

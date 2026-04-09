@@ -158,7 +158,7 @@ export function CalendarStep({ onNext, onSkip }: Props) {
             }}
           >
             Connect your Google Calendar to see your events alongside your themes and actions.
-            Kaizen OS will help you plan around your existing commitments.
+            ZenOS will help you plan around your existing commitments.
           </p>
 
           <div

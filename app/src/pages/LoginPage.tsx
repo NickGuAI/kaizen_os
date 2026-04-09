@@ -49,7 +49,7 @@ export default function LoginPage() {
     <div className="app" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ width: '100%', maxWidth: 420, padding: 24, background: '#0b0b0b', borderRadius: 12, border: '1px solid #1f2937' }}>
         <h1 style={{ fontSize: 24, fontWeight: 600, marginBottom: 8 }}>Welcome back</h1>
-        <p style={{ color: '#9ca3af', marginBottom: 24 }}>Sign in to continue to Kaizen OS.</p>
+        <p style={{ color: '#9ca3af', marginBottom: 24 }}>Sign in to continue to ZenOS.</p>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <button
             type="button"

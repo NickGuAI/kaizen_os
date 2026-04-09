@@ -1,4 +1,4 @@
-# KaizenOS Branding Guidelines
+# ZenOS Branding Guidelines
 
 For logo, imagery, and visual asset creation.
 
@@ -7,14 +7,14 @@ For logo, imagery, and visual asset creation.
 ## Brand Essence
 
 ### Name Origin
-**Kaizen** (改善) - Japanese philosophy meaning "continuous improvement" or "change for better"
-**OS** - Operating System for your productivity/life
+**Zen** — Clarity, presence, and focused insight
+**OS** — The operating system running beneath your professional life, continuously synthesizing and coaching
 
 ### Brand Personality
-- **Intentional**: Every feature serves a purpose
-- **Calm**: Not overwhelming or gamified
-- **Honest**: Shows reality, not vanity metrics
-- **Progressive**: Small improvements compound over time
+- **Proactive**: Acts before being asked — watches, synthesizes, reaches out
+- **Calm**: Cuts through noise; never overwhelming or gamified
+- **Direct**: Surfaces uncomfortable truths with care — honest, not harsh
+- **Elevating**: Every interaction moves you forward
 
 ### Tone of Voice
 - Direct and clear
@@ -186,10 +186,10 @@ Use a consistent icon library:
 ## File Naming Convention
 
 ```
-kaizenos-logo-primary.svg
-kaizenos-logo-white.svg
-kaizenos-logo-icon.svg
-kaizenos-screenshot-calendar.png
-kaizenos-screenshot-planning.png
-kaizenos-feature-graphic.png
+zenos-logo-primary.svg
+zenos-logo-white.svg
+zenos-logo-icon.svg
+zenos-screenshot-calendar.png
+zenos-screenshot-planning.png
+zenos-feature-graphic.png
 ```

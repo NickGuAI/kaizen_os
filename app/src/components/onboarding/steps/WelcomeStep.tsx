@@ -47,7 +47,7 @@ function ConceptItem({ term, description }: ConceptItemProps) {
 export function WelcomeStep({ onNext }: Props) {
   return (
     <div className="flex flex-col items-center text-center" style={{ padding: 'var(--space-8) 0' }}>
-      {/* Kaizen logo mark */}
+      {/* ZenOS logo mark */}
       <div style={{ marginBottom: 'var(--space-8)' }}>
         <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
           <path
@@ -75,7 +75,7 @@ export function WelcomeStep({ onNext }: Props) {
           letterSpacing: '-0.02em',
         }}
       >
-        Welcome to Kaizen OS
+        Welcome to ZenOS
       </h1>
 
       <p
@@ -86,9 +86,9 @@ export function WelcomeStep({ onNext }: Props) {
           marginBottom: 'var(--space-8)',
         }}
       >
-        A personal operating system for continuous improvement.
+        Your proactive personal coach — listening, synthesizing, and elevating.
         <br />
-        We'll guide you through setting up your life's architecture.
+        We'll guide you through setting up your coaching context.
       </p>
 
       <div style={{ width: '100%', maxWidth: '400px', marginBottom: 'var(--space-8)' }}>

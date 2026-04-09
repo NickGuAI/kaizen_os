@@ -190,7 +190,7 @@ export interface CalendarAccount extends Timestamps {
 }
 
 /**
- * CalendarEventAnnotation: Durable link between a calendar event and a Kaizen card.
+ * CalendarEventAnnotation: Durable link between a calendar event and a ZenOS card.
  * Survives event moves/edits via stable identity (eventId + instanceKey).
  */
 export interface CalendarEventAnnotation extends Timestamps {

@@ -1,4 +1,4 @@
-# KaizenOS Marketing Copy
+# ZenOS Marketing Copy
 
 Various formats for different contexts.
 
@@ -7,71 +7,83 @@ Various formats for different contexts.
 ## App Store / Product Hunt Style
 
 ### Headline
-**KaizenOS: Goal-Connected Productivity**
+**ZenOS — Your Proactive Personal Coach**
 
 ### Tagline
-Plan with purpose. Execute with clarity.
+*Listen. Synthesize. Elevate.*
 
 ### One-Liner
-Connect your calendar to your goals—see where your time goes and whether it matters.
+The proactive personal coach that watches your work signals, asks the hard questions, and surfaces what you need to hear — before you think to ask.
 
 ### Elevator Pitch (30 seconds)
-Most people use their calendar for meetings and their to-do list for tasks, but never connect either to their actual goals. KaizenOS bridges that gap. Define what matters to you, link your calendar events to those goals, and finally understand if you're spending time on what matters—or just staying busy.
+Enterprise professionals are drowning in data about their own lives — emails, calendars, messages, code commits, Notion notes — but no one is synthesizing it into insight. ZenOS does. It runs continuously, learns your patterns, and proactively surfaces what you need to hear, not just what you asked for. The result: better mental health, sharper performance, and a career trajectory that compounds.
 
 ---
 
 ## Feature Highlights (For Product Pages)
 
-### Theme-Based Planning
-Stop managing tasks in isolation. Organize your work around meaningful themes—career growth, health, relationships, creative projects. Every action ties back to what actually matters to you.
+### Proactive Check-Ins
+ZenOS doesn't wait to be asked. It watches, listens, and reaches out. It asks the hard questions. It provokes reflection rather than delivering monologues — meeting you where you are, when it matters.
 
-### Smart Calendar Integration
-Connect your Google Calendar and see your schedule through a new lens. Classify events, attribute time to goals, and spot patterns in how you spend your days.
+### Signal Synthesis
+ZenOS reads your email, calendar, Notion, messages, code sessions, and daily reviews — and synthesizes them into a coherent picture of your week. No more fragmented signals. One coach, full context.
 
-### Four Types of Work
-Not all work is the same. KaizenOS distinguishes between:
-- **Gates**: Key decisions and milestones
-- **Experiments**: Things you're testing and learning
-- **Routines**: Habits you're building
-- **Operations**: Necessary maintenance
+### Two Deployment Tiers
 
-### Weekly Review Workflow
-End each week with clarity. Review what happened, grade your experiments, adjust your plans, and start fresh with intention.
+**Self-Hosted (Sensei)**
+- Runs on your own machine — always-on, lightweight
+- Full data privacy: nothing leaves your device
+- Bring your own API key; configurable model
+- Lower cost — ideal for individual professionals
 
-### AI Planning Assistant
-Chat with an AI that understands your goals, calendar, and priorities. Get help organizing work, creating tasks, and making planning decisions.
+**Managed (ZenOS Cloud)**
+- Hosted by Pioneering Minds
+- Enterprise-grade security and compliance
+- Managed integrations, data sources, and updates
+- Premium support and per-seat pricing for teams
 
-### Daily Focus
-Each day, choose your top 3 priorities. Tag your intentions (want to do / neutral / avoiding) and stay honest about how you're spending energy.
+### Mental Health & Performance, Together
+ZenOS tracks stress signals, energy patterns, and workload drift — and checks in before burnout takes hold. High performance and sustainable wellbeing are not in conflict. ZenOS treats them as inseparable.
+
+### The Hard Questions
+A great coach doesn't just reflect — they confront. ZenOS surfaces uncomfortable patterns: the week you said "deep work" but took 14 meetings. The quarter you avoided a difficult conversation. The month your energy was low and your output was thin. It asks why.
+
+### Enterprise-Ready
+Organizations lose their best people to burnout, disengagement, and lack of growth. ZenOS is the proactive coach deployed to each individual — synthesizing their work signals, asking the right questions, and building the self-awareness that separates high performers from great ones.
 
 ---
 
 ## Social Media Copy
 
 ### Twitter/X (280 chars)
-Your calendar shows where your time goes. But does it show if that time matters?
+Your calendar shows where your time goes. Your email shows what's urgent. Your messages show your mood.
 
-KaizenOS connects your schedule to your goals—so you're not just busy, you're making progress.
+But no one is synthesizing it into insight.
+
+ZenOS is the proactive coach that does — before you know you need it.
 
 ### LinkedIn
-I built KaizenOS because I was tired of being productive but not progressing.
+I built ZenOS because high performers don't need more tools. They need a coach.
 
-Checking off tasks felt good. My calendar was full. But at the end of the quarter, I couldn't point to what actually moved forward.
+Not one that answers when asked — one that watches, synthesizes, and reaches out.
 
-KaizenOS connects the dots:
-- Define themes (what matters to you)
-- Plan actions (how you'll make progress)
-- Link your calendar (where your time actually goes)
-- Review weekly (are you aligned?)
+ZenOS does three things most tools don't:
+- Listens across your real work signals (email, calendar, Notion, messages, code)
+- Synthesizes patterns you can't see from inside them
+- Proactively checks in — not when you open an app, but when something needs to be said
 
-It's not about doing more. It's about doing what matters.
+The result: professionals who catch burnout early, compound their growth, and show up with more clarity.
+
+This is not another productivity app. It's a coach that runs in the background of your career.
 
 ### Instagram Caption
-Busy ≠ Progress
+Most productivity tools wait to be used.
 
-Your calendar is full. Your to-do list is endless. But are you actually moving toward what matters?
+ZenOS doesn't wait.
 
-KaizenOS connects your daily schedule to your bigger goals. Finally see if your time matches your priorities.
+It watches. Synthesizes. Reaches out.
+
+Your coach — running in the background, asking the questions that matter.
 
 Link in bio.
 
@@ -80,48 +92,53 @@ Link in bio.
 ## Email Marketing
 
 ### Subject Lines
-- "Your calendar knows where your time goes. But does it matter?"
-- "Stop being busy. Start making progress."
-- "The productivity system that connects tasks to goals"
+- "Your coach doesn't wait for you to ask"
+- "What if someone was watching your work signals — and told you what they saw?"
+- "Enterprise professionals deserve a proactive coach. Introducing ZenOS."
+- "Stop being surprised by burnout. Start being ahead of it."
 
 ### Welcome Email Snippet
-Welcome to KaizenOS.
+Welcome to ZenOS.
 
-You're joining a community of people who want more than productivity—they want progress.
+You now have a coach that doesn't wait to be asked.
 
-Over the next week, you'll:
-1. Define what matters (your themes)
-2. Plan how to make progress (your actions)
-3. Connect your calendar (where time actually goes)
+Over the next few days, ZenOS will:
+1. Connect to your work signals (email, calendar, Notion, messages)
+2. Begin synthesizing patterns in how you work, rest, and grow
+3. Check in proactively — with questions, not monologues
 
-Let's make your time count.
+Stay open to what it surfaces. The most useful insights are often the ones you weren't looking for.
 
 ---
 
 ## Comparison Positioning
 
-### vs. Notion
-Notion is a blank canvas—powerful but requires setup. KaizenOS is an opinionated system for goal-connected productivity, with calendar integration built in.
+### vs. Notion AI / ChatGPT
+Reactive tools answer when asked. ZenOS watches continuously and reaches out when something needs to be said. You don't have to know the right question — ZenOS finds the signal and brings it to you.
 
-### vs. Todoist/Things
-Task managers track what you need to do. KaizenOS tracks whether what you're doing connects to what matters.
+### vs. Coaching Platforms (BetterUp, Torch)
+Human coaches scale poorly and meet weekly at best. ZenOS is always on, reads your real work data, and checks in when it matters — not on a calendar schedule.
 
-### vs. Google Calendar
-Your calendar shows events. KaizenOS shows how those events connect to your goals and helps you plan with intention.
+### vs. Productivity Apps (Notion, Todoist, Things)
+Productivity tools help you manage tasks. ZenOS helps you understand whether the tasks you're managing are moving you toward what matters — and calls out when they're not.
 
-### vs. Reclaim/Clockwise
-AI schedulers optimize your time. KaizenOS helps you understand and direct your time toward meaningful outcomes.
+### vs. Wellness Apps (Headspace, Calm)
+Wellness apps treat symptoms. ZenOS addresses root causes — workload drift, unresolved conflicts, growth stagnation — by synthesizing your actual signals, not survey responses.
 
 ---
 
 ## Press/Media Boilerplate
 
-**About KaizenOS**
+**About ZenOS**
 
-KaizenOS is a personal productivity platform that connects goal setting, calendar management, and task tracking into a unified system. Built on the Japanese philosophy of continuous improvement (kaizen), the app helps knowledge workers bridge the gap between aspirations and daily execution.
+ZenOS is a proactive, deployable personal coach for enterprise professionals. Built by Pioneering Minds, ZenOS runs continuously in the background — synthesizing signals from email, calendar, messages, Notion, and code sessions — and proactively checks in to surface insights, ask hard questions, and help professionals improve mental health, elevate performance, and reduce burnout.
 
-Founded in [YEAR], KaizenOS integrates with Google Calendar and Google Tasks to provide users with a complete picture of how their time aligns with their priorities.
+ZenOS is available in two tiers: **Sensei** (self-hosted, full data privacy, bring-your-own-key) and **ZenOS Cloud** (enterprise-managed, compliance-ready, per-seat pricing).
+
+**Tagline**: *Listen. Synthesize. Elevate.*
+
+**Founded**: Pioneering Minds AI
 
 **Media Contact**: [EMAIL]
 
-**Website**: https://kaizenos.app
+**Website**: https://zenos.gehirn.ai
