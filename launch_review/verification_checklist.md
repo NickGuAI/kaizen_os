@@ -26,7 +26,7 @@ Track progress on requirements for OAuth verification.
 
 ## OAuth Consent Screen
 
-- [ ] App name set: "KaizenOS"
+- [ ] App name set: "ZenOS"
 - [ ] User support email configured
 - [ ] App logo uploaded (120x120 PNG)
 - [ ] Application homepage link

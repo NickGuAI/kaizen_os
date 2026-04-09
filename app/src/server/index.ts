@@ -40,9 +40,9 @@ const swaggerSpec = swaggerJSDoc({
   definition: {
     openapi: '3.0.3',
     info: {
-      title: 'Kaizen OS API',
+      title: 'ZenOS API',
       version: '0.1.0',
-      description: 'Kaizen OS API documentation',
+      description: 'ZenOS API documentation',
     },
     servers: [
       { url: 'http://localhost:3001', description: 'Local' },
