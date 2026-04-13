@@ -1,3 +1,7 @@
+/* ══════════════════════════════════════════════════════
+   ZenOS Public Landing Page
+   ══════════════════════════════════════════════════════ */
+
 .public-landing {
   --landing-sage: #8b9467;
   --landing-ink: #1A1A1A;
@@ -5,6 +9,11 @@
   --landing-panel: rgba(254, 254, 254, 0.85);
   --landing-border: rgba(139, 148, 103, 0.25);
   --landing-focus: #9da575;
+  --landing-red: #C23B22;
+  --landing-radius: 4px 20px 4px 20px;
+  --landing-shadow: 0 24px 80px rgba(42, 42, 40, 0.08);
+  --landing-sans: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --landing-serif: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
 
   position: relative;
   min-height: 100vh;
@@ -12,9 +21,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   overflow: hidden;
   background-color: #F5F1EB;
+  gap: 2.5rem;
 }
 
 .public-landing::before {
@@ -25,6 +34,8 @@
   opacity: 1;
   z-index: 0;
 }
+
+/* ── WebGL Background Layers ── */
 
 .public-landing__rays,
 .public-landing__overlay {
@@ -42,19 +53,21 @@
   background: none;
 }
 
+/* ── Hero Section ── */
+
 .public-landing__hero {
   position: relative;
   z-index: 3;
-  width: min(760px, 100%);
-  text-align: center;
+  width: min(960px, 100%);
   color: var(--landing-ink);
   background: var(--landing-panel);
   border: none;
-  border-radius: 28px;
+  border-radius: var(--landing-radius);
   padding: clamp(2rem, 5vw, 3.4rem) clamp(1.2rem, 5vw, 3.4rem);
-  box-shadow: 0 24px 80px rgba(42, 42, 40, 0.08);
+  box-shadow: var(--landing-shadow);
   backdrop-filter: blur(12px);
   overflow: hidden;
+  margin-top: 2rem;
 }
 
 .public-landing__shape-blur {
@@ -65,9 +78,31 @@
   pointer-events: none;
 }
 
-.public-landing__hero-content {
+.public-landing__hero-inner {
   position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: center;
+}
+
+.public-landing__hero-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.public-landing__hero-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.2rem;
+}
+
+.public-landing__hero-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
 }
 
 .public-landing__kicker {
@@ -75,51 +110,73 @@
   letter-spacing: 0.22em;
   text-transform: uppercase;
   font-size: 1.5rem;
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--landing-sans);
 }
 
 .public-landing__headline {
-  margin: 1.15rem auto 1rem;
-  max-width: 18ch;
-  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
-  font-size: clamp(2rem, 5.5vw, 4.2rem);
-  line-height: 1.06;
+  margin: 1.15rem 0 1rem;
+  font-family: var(--landing-serif);
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1.08;
   letter-spacing: 0.015em;
   text-wrap: balance;
 }
 
 .public-landing__subhead {
-  margin: 0 auto;
-  max-width: 45ch;
+  margin: 0;
   color: var(--landing-muted);
-  font-size: clamp(1rem, 2.1vw, 1.2rem);
-  line-height: 1.55;
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+  line-height: 1.6;
+  font-family: var(--landing-sans);
 }
 
+.public-landing__hero-ctas {
+  display: flex;
+  gap: 0.8rem;
+  margin-top: 1.8rem;
+  flex-wrap: wrap;
+}
+
+/* ── CTA Buttons ── */
+
 .public-landing__cta {
-  margin-top: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0.86rem 1.7rem;
-  min-width: 11.8rem;
+  min-width: 10rem;
   border-radius: 999px;
+  font-family: var(--landing-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+  cursor: pointer;
+}
+
+.public-landing__cta--primary {
   border: 1px solid rgba(139, 148, 103, 0.45);
   background: linear-gradient(135deg, var(--landing-sage), #9da575);
   color: #FFFFFF;
-  text-decoration: none;
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
-  font-size: 0.98rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
-.public-landing__cta:hover {
+.public-landing__cta--primary:hover {
   transform: translateY(-2px);
   border-color: rgba(157, 165, 117, 0.9);
   background: linear-gradient(135deg, #9da575, #a8b07f);
+}
+
+.public-landing__cta--secondary {
+  border: 1px solid var(--landing-border);
+  background: var(--landing-panel);
+  color: var(--landing-ink);
+  backdrop-filter: blur(8px);
+}
+
+.public-landing__cta--secondary:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 148, 103, 0.6);
 }
 
 .public-landing__cta:focus-visible {
@@ -127,99 +184,400 @@
   outline-offset: 4px;
 }
 
-@media (max-width: 720px) {
-  .public-landing__hero {
-    border-radius: 20px;
-    padding: 1.8rem 1.1rem 2rem;
-  }
+/* ── Mock Dashboard Card ── */
 
-  .public-landing__headline {
-    margin-top: 0.95rem;
-    max-width: 17ch;
-  }
-
-  .public-landing__subhead {
-    max-width: 32ch;
-  }
-
-  .public-landing__cta {
-    width: 100%;
-    max-width: 20rem;
-  }
+.public-landing__hero-right {
+  display: flex;
+  justify-content: center;
 }
 
-/* ── Pricing comparison ── */
+.public-landing__mock-card {
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: var(--landing-radius);
+  padding: 1.6rem 1.4rem;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--landing-shadow);
+  width: 100%;
+  max-width: 300px;
+}
+
+.public-landing__mock-label {
+  font-family: var(--landing-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--landing-sage);
+  margin: 0 0 1rem;
+}
+
+.public-landing__mock-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0;
+}
+
+.public-landing__mock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.public-landing__mock-dot--sage {
+  background: var(--landing-sage);
+}
+
+.public-landing__mock-dot--warm {
+  background: #c2a06a;
+}
+
+.public-landing__mock-text {
+  font-family: var(--landing-sans);
+  font-size: 0.85rem;
+  color: var(--landing-muted);
+  line-height: 1.4;
+}
+
+.public-landing__mock-bar {
+  margin-top: 1rem;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(139, 148, 103, 0.15);
+  overflow: hidden;
+}
+
+.public-landing__mock-bar-fill {
+  width: 78%;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--landing-sage), #9da575);
+}
+
+.public-landing__mock-caption {
+  margin: 0.5rem 0 0;
+  font-family: var(--landing-sans);
+  font-size: 0.75rem;
+  color: var(--landing-muted);
+}
+
+/* ── Social Proof Bar ── */
+
+.public-landing__proof {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.5rem;
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
+  box-shadow: var(--landing-shadow);
+  width: fit-content;
+}
+
+.public-landing__proof-item {
+  font-family: var(--landing-sans);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--landing-muted);
+  letter-spacing: 0.02em;
+}
+
+.public-landing__proof-sep {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--landing-sage);
+  opacity: 0.5;
+}
+
+/* ── Section Title (shared) ── */
+
+.public-landing__section-title {
+  font-family: var(--landing-serif);
+  font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+  color: var(--landing-ink);
+  text-align: center;
+  margin: 0 0 1.8rem;
+  letter-spacing: 0.01em;
+}
+
+/* ── Two Pillars Section ── */
+
+.public-landing__pillars {
+  position: relative;
+  z-index: 3;
+  width: min(960px, 100%);
+}
+
+.public-landing__pillars-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.public-landing__pillar-card {
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: var(--landing-radius);
+  padding: clamp(1.6rem, 4vw, 2.4rem);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--landing-shadow);
+}
+
+.public-landing__pillar-label {
+  font-family: var(--landing-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--landing-sage);
+  margin: 0 0 0.6rem;
+}
+
+.public-landing__pillar-heading {
+  font-family: var(--landing-serif);
+  font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+  color: var(--landing-ink);
+  margin: 0 0 0.8rem;
+  line-height: 1.15;
+}
+
+.public-landing__pillar-desc {
+  font-family: var(--landing-sans);
+  font-size: clamp(0.88rem, 1.6vw, 0.95rem);
+  color: var(--landing-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ── Problem / Solution Section ── */
+
+.public-landing__compare {
+  position: relative;
+  z-index: 3;
+  width: min(960px, 100%);
+}
+
+.public-landing__compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.public-landing__compare-col {
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: var(--landing-radius);
+  padding: clamp(1.6rem, 4vw, 2.4rem);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--landing-shadow);
+}
+
+.public-landing__compare-heading {
+  font-family: var(--landing-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0 0 1rem;
+}
+
+.public-landing__compare-heading--without {
+  color: var(--landing-red);
+}
+
+.public-landing__compare-heading--with {
+  color: var(--landing-sage);
+}
+
+.public-landing__compare-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-landing__compare-item {
+  font-family: var(--landing-sans);
+  font-size: 0.9rem;
+  color: var(--landing-muted);
+  padding: 0.45rem 0;
+  padding-left: 1.6rem;
+  position: relative;
+  line-height: 1.5;
+}
+
+.public-landing__compare-item--without::before {
+  content: '\2717';
+  position: absolute;
+  left: 0;
+  color: var(--landing-red);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.public-landing__compare-item--with::before {
+  content: '\2713';
+  position: absolute;
+  left: 0;
+  color: var(--landing-sage);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* ── How It Works ── */
+
+.public-landing__how {
+  position: relative;
+  z-index: 3;
+  width: min(960px, 100%);
+}
+
+.public-landing__steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.public-landing__step {
+  flex: 1;
+  max-width: 280px;
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: var(--landing-radius);
+  padding: 1.8rem 1.4rem;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--landing-shadow);
+  text-align: center;
+}
+
+.public-landing__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--landing-sage), #9da575);
+  color: #fff;
+  font-family: var(--landing-serif);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.public-landing__step-title {
+  font-family: var(--landing-serif);
+  font-size: 1.3rem;
+  color: var(--landing-ink);
+  margin: 0 0 0.6rem;
+}
+
+.public-landing__step-desc {
+  font-family: var(--landing-sans);
+  font-size: 0.88rem;
+  color: var(--landing-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.public-landing__step-arrow {
+  font-size: 1.5rem;
+  color: var(--landing-sage);
+  opacity: 0.5;
+  margin-top: 3rem;
+  flex-shrink: 0;
+}
+
+/* ── Data Usage Section ── */
+
+.public-landing__data-usage {
+  position: relative;
+  z-index: 3;
+  width: min(760px, 100%);
+  background: rgba(254, 254, 254, 0.7);
+  border: 1px solid var(--landing-border);
+  border-radius: var(--landing-radius);
+  padding: clamp(1.6rem, 4vw, 2.4rem) clamp(1.2rem, 4vw, 2.4rem);
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.public-landing__data-usage-title {
+  margin: 0 0 0.8rem;
+  font-family: var(--landing-serif);
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  color: var(--landing-ink);
+  letter-spacing: 0.01em;
+}
+
+.public-landing__data-usage-desc {
+  margin: 0 auto 1.2rem;
+  max-width: 55ch;
+  color: var(--landing-muted);
+  font-family: var(--landing-sans);
+  font-size: clamp(0.9rem, 2vw, 1rem);
+  line-height: 1.6;
+}
+
+.public-landing__data-usage-link {
+  display: inline-block;
+  color: var(--landing-sage);
+  font-family: var(--landing-sans);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(139, 148, 103, 0.3);
+  transition: border-color 160ms ease, color 160ms ease;
+}
+
+.public-landing__data-usage-link:hover {
+  border-color: var(--landing-sage);
+  color: #7a8358;
+}
+
+/* ── Pricing Section ── */
 
 .public-landing__pricing {
   position: relative;
   z-index: 3;
-  width: min(760px, 100%);
-  margin-top: 2rem;
-}
-
-.public-landing__pricing-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.9rem 1.4rem;
-  border-radius: 999px;
-  border: 1px solid var(--landing-border);
-  background: var(--landing-panel);
-  backdrop-filter: blur(10px);
-  color: var(--landing-muted);
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  transition: border-color 160ms ease, color 160ms ease;
-}
-
-.public-landing__pricing-toggle:hover {
-  border-color: rgba(139, 148, 103, 0.7);
-  color: var(--landing-ink);
-}
-
-.public-landing__pricing-toggle svg {
-  transition: transform 200ms ease;
-}
-
-.public-landing__pricing-toggle[aria-expanded='true'] svg {
-  transform: rotate(180deg);
+  width: min(960px, 100%);
 }
 
 .public-landing__pricing-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-top: 1rem;
-  animation: pricing-fade-in 300ms ease;
-}
-
-@keyframes pricing-fade-in {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  gap: 1.2rem;
 }
 
 .public-landing__plan {
   background: var(--landing-panel);
   border: 1px solid var(--landing-border);
-  border-radius: 20px;
-  padding: 1.6rem 1.2rem;
+  border-radius: var(--landing-radius);
+  padding: 1.8rem 1.4rem;
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
+  box-shadow: var(--landing-shadow);
 }
 
 .public-landing__plan--featured {
   border-color: var(--landing-sage);
-  box-shadow: 0 0 24px rgba(139, 148, 103, 0.15);
+  box-shadow:
+    0 0 0 2px rgba(139, 148, 103, 0.3),
+    0 24px 80px rgba(42, 42, 40, 0.12);
 }
 
 .public-landing__plan-name {
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--landing-sans);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.15em;
@@ -229,7 +587,7 @@
 }
 
 .public-landing__plan-price {
-  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
+  font-family: var(--landing-serif);
   font-size: 2rem;
   color: var(--landing-ink);
   margin: 0 0 1rem;
@@ -239,7 +597,7 @@
 .public-landing__plan-price span {
   font-size: 0.9rem;
   color: var(--landing-muted);
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--landing-sans);
 }
 
 .public-landing__plan-features {
@@ -250,7 +608,7 @@
 }
 
 .public-landing__plan-features li {
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  font-family: var(--landing-sans);
   font-size: 0.85rem;
   color: var(--landing-muted);
   padding: 0.35rem 0;
@@ -271,125 +629,215 @@
   opacity: 0.7;
 }
 
+/* ── Founder Section ── */
+
+.public-landing__founder {
+  position: relative;
+  z-index: 3;
+  width: min(760px, 100%);
+}
+
+.public-landing__founder-inner {
+  background: var(--landing-panel);
+  border: 1px solid var(--landing-border);
+  border-radius: var(--landing-radius);
+  padding: clamp(2rem, 5vw, 3rem);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--landing-shadow);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.public-landing__founder-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--landing-sage), #9da575);
+  color: #fff;
+  font-family: var(--landing-serif);
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.2rem;
+}
+
+.public-landing__founder-quote {
+  font-family: var(--landing-serif);
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+  color: var(--landing-ink);
+  line-height: 1.5;
+  max-width: 50ch;
+  margin: 0 0 1rem;
+  font-style: italic;
+  border: none;
+  padding: 0;
+}
+
+.public-landing__founder-credentials {
+  font-family: var(--landing-sans);
+  font-size: 0.85rem;
+  color: var(--landing-muted);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* ── Bottom CTA ── */
+
+.public-landing__bottom-cta {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  width: min(760px, 100%);
+}
+
+.public-landing__bottom-cta-headline {
+  font-family: var(--landing-serif);
+  font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+  color: var(--landing-ink);
+  margin: 0 0 1.5rem;
+}
+
+.public-landing__bottom-cta .public-landing__hero-ctas {
+  justify-content: center;
+}
+
 /* ── Footer ── */
 
 .public-landing__footer {
   position: relative;
   z-index: 3;
-  text-align: center;
-  padding: 1.5rem 0 0.5rem;
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
-  font-size: 0.78rem;
+  width: min(960px, 100%);
+  padding-top: 1rem;
+  border-top: 1px solid var(--landing-border);
 }
 
-.public-landing__footer a {
-  color: var(--landing-muted);
-  opacity: 0.5;
-  text-decoration: none;
-  transition: opacity 160ms ease;
+.public-landing__footer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  padding: 1.5rem 0;
 }
 
-.public-landing__footer a:hover {
-  opacity: 0.85;
+.public-landing__footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-/* ── About / What is ZenOS ── */
-
-.public-landing__about,
-.public-landing__data-usage {
-  position: relative;
-  z-index: 3;
-  width: min(760px, 100%);
-  margin-top: 2rem;
-  background: rgba(254, 254, 254, 0.7);
-  border: 1px solid var(--landing-border);
-  border-radius: 20px;
-  padding: clamp(1.6rem, 4vw, 2.4rem) clamp(1.2rem, 4vw, 2.4rem);
-  backdrop-filter: blur(10px);
-  text-align: center;
-}
-
-.public-landing__about-title,
-.public-landing__data-usage-title {
-  margin: 0 0 0.8rem;
-  font-family: 'Cormorant Garamond', 'Palatino Linotype', 'Times New Roman', serif;
-  font-size: clamp(1.4rem, 3vw, 1.8rem);
+.public-landing__footer-heading {
+  font-family: var(--landing-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--landing-ink);
-  letter-spacing: 0.01em;
+  margin: 0 0 0.4rem;
 }
 
-.public-landing__about-desc,
-.public-landing__data-usage-desc {
-  margin: 0 auto 1.2rem;
-  max-width: 50ch;
+.public-landing__footer-link {
+  font-family: var(--landing-sans);
+  font-size: 0.82rem;
   color: var(--landing-muted);
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
-  font-size: clamp(0.9rem, 2vw, 1rem);
-  line-height: 1.6;
-}
-
-.public-landing__about-features {
-  list-style: none;
-  margin: 0 auto;
-  padding: 0;
-  max-width: 28ch;
-  text-align: left;
-}
-
-.public-landing__about-features li {
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
-  font-size: 0.9rem;
-  color: var(--landing-muted);
-  padding: 0.35rem 0;
-  padding-left: 1.2rem;
-  position: relative;
+  text-decoration: none;
+  transition: color 160ms ease;
   line-height: 1.5;
 }
 
-.public-landing__about-features li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.6rem;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--landing-sage);
-  opacity: 0.7;
-}
-
-.public-landing__data-usage-link {
-  display: inline-block;
+a.public-landing__footer-link:hover {
   color: var(--landing-sage);
-  font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-decoration: none;
-  border-bottom: 1px solid rgba(139, 148, 103, 0.3);
-  transition: border-color 160ms ease, color 160ms ease;
 }
 
-.public-landing__data-usage-link:hover {
-  border-color: var(--landing-sage);
-  color: #7a8358;
-}
-
-.public-landing__footer-sep {
-  display: inline-block;
-  margin: 0 0.75rem;
+.public-landing__footer-copy {
+  font-family: var(--landing-sans);
+  font-size: 0.75rem;
   color: var(--landing-muted);
-  opacity: 0.25;
+  opacity: 0.6;
+  text-align: center;
+  margin: 1rem 0 0;
+  padding-bottom: 0.5rem;
 }
+
+/* ══════════════════════════════════════════════════════
+   Responsive — stack to single column at 720px
+   ══════════════════════════════════════════════════════ */
 
 @media (max-width: 720px) {
+  .public-landing__hero {
+    padding: 1.8rem 1.1rem 2rem;
+  }
+
+  .public-landing__hero-inner {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .public-landing__hero-badge {
+    justify-content: center;
+  }
+
+  .public-landing__hero-ctas {
+    justify-content: center;
+  }
+
+  .public-landing__headline {
+    margin-top: 0.95rem;
+  }
+
+  .public-landing__mock-card {
+    max-width: 100%;
+  }
+
+  .public-landing__proof {
+    border-radius: 20px;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .public-landing__proof-sep {
+    display: none;
+  }
+
+  .public-landing__pillars-grid,
+  .public-landing__compare-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-landing__steps {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .public-landing__step {
+    max-width: 100%;
+  }
+
+  .public-landing__step-arrow {
+    transform: rotate(90deg);
+    margin: 0;
+  }
+
   .public-landing__pricing-grid {
     grid-template-columns: 1fr;
   }
 
-  .public-landing__plan {
-    border-radius: 16px;
+  .public-landing__footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .public-landing__cta {
+    width: 100%;
+    max-width: 20rem;
   }
 }
+
+/* ══════════════════════════════════════════════════════
+   Reduced Motion
+   ══════════════════════════════════════════════════════ */
 
 @media (prefers-reduced-motion: reduce) {
   .public-landing__cta {
@@ -398,9 +846,5 @@
 
   .public-landing__cta:hover {
     transform: none;
-  }
-
-  .public-landing__pricing-grid {
-    animation: none;
   }
 }
